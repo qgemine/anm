@@ -1,64 +1,32 @@
 classdef ANM_System < matlab.mixin.Copyable
-    % ANM_System Simulate the system's dynamics of the Active Network
-    % Management benchmark available at
-    % http://www.montefiore.ulg.ac.be/~anm/ . It takes into account the
-    % control actions provided by the user and computes the reward
-    % associated to every transition.
-    %
-    % ANM_System Methods:
-    %    transition - Simulate a transition of the system.
-    %    getCurtState - Get the last curtailment instructions.
-    %    getFlexSignals - Get load modulation signals.
-    %    getFlexState - Get state of flexible loads.
-    %    getI - Get current magnitude in links.
-    %    getPGens - Get power injection of generators.
-    %    getPLoads - Get power injection of loads (excluding modulation).
-    %    getQuarter - Get current quarter of hour in the day.
-    %    getSolarIr - Get solar irradiance.
-    %    getV - Get voltage magnitudes at buses.
-    %    getWindSpeed - Get wind speed.
-    %
-    % ANM_System Properties:
-    %    N_buses - Number of buses in the network.
-    %    N_gens - Number of distributed generators.
-    %    N_loads - Number of loads.
-    %    Tflex - Duration of the modulation signal of loads [time period].
-    %    V_slack - Slack bus voltage [p.u.] (constant). 
-    %    Vmax - Lower voltage limit at buses [p.u.].
-    %    Vmin - Upper voltage limit at buses [p.u.].
-    %    Y - Nodal admittance matrix in p.u. (S_base = 1MVA). 
-    %    b_ij - Susceptance of links [p.u.].
-    %    curt_price - Curtailment price per MWh, constant per hour.
-    %    dPnom - Nominal magnitude of the modulation signal of loads [MW].
-    %    dev2bus - Mapping from devices to buses.
-    %    g_ij - Conductance of links [p.u.].
-    %    links - [from;to] buses of links.
-    %    qp - Q/P ratio of devices = tan(phi).
-    %    ratings - Current magnitude limits of the links [p.u.].
+    % ANM_System Simulate the system dynamics of the Active Network Management
+    %  benchmark available at  http://www.montefiore.ulg.ac.be/~anm/ .
+    % It takes into account the control actions provided by the user and
+    % computes the reward associated to every transition.
+
 
     properties(GetAccess = 'public', SetAccess = 'private')
         N_buses; % Number of buses in the network.
         N_gens; % Number of distributed generators.
         N_loads; % Number of loads.
         Y; % Nodal admittance matrix in p.u. (S_base = 1MVA).
-        dev2bus; % Mapping from devices to buses.
+        dev2bus; % Mapping matrix from devices to buses.
         qp; % Q/P ratio of devices = tan(phi)
         g_ij; % conductance of links [p.u.]
         b_ij; % susceptance of links [p.u.]
         links; % [from;to] buses of links
         V_slack; % slack bus voltage [p.u.] (constant).
-        dPnom; % nominal magnitude of the modulation signal of loads [MW]
-        Tflex; % duration of the modulation signal of loads [time period]
-        ratings; % current magnitude limits of the links [p.u.]
+        dPnom; % nominal magnitude of the modulation service of loads [MW]
+        Tflex; % duration of the modulation service of loads [time period]
+        ratings; % limits in current magnitude of the links [p.u.]
         Vmin; % upper voltage limit at buses [p.u.]
         Vmax; % lower voltage limit at buses [p.u.]
-        curt_price; % curtailment price per MWh, constant per hour
     end
     
     methods
         function obj = ANM_System()
-            % Initialize the data members of the class and generate the
-            % the initial state of the system.
+            % ANM_SYSTEM Initialize the data members of the class and 
+            % generate the initial state of the system.
             
             % Set system's parameters.
             obj.N_buses = 77;
@@ -71,7 +39,7 @@ classdef ANM_System < matlab.mixin.Copyable
             obj.b_ij = [-238.0952;-200.433513394501;-200.433513394501;-406.430203980147;-200.433513394501;-200.433513394501;-406.430203980147;-200.433513394501;-200.433513394501;-406.430203980147;-153.546432307417;-153.546432307417;-153.546432307417;-381.380980530501;-381.380980530501;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-466.114727639969;-466.114727639969;-466.114727639969;-466.114727639969;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-466.114727639969;-466.114727639969;-466.114727639969;-466.114727639969;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-442.773648397731;-442.773648397731;-442.773648397731;-442.773648397731;-442.773648397731;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796];
             obj.links = [1 2;2 3;3 4;4 5;2 6;6 7;7 8;2 9;9 10;10 11;2 12;12 13;13 14;13 15;14 16;2 17;17 18;18 19;19 20;20 21;21 22;22 23;18 24;20 25;21 26;23 27;2 28;28 29;29 30;30 31;31 32;32 33;33 34;29 35;31 36;32 37;34 38;2 39;39 40;40 41;41 42;42 43;43 44;44 45;45 46;46 47;40 48;42 49;43 50;45 51;47 52;2 53;53 54;54 55;55 56;56 57;57 58;58 59;59 60;60 61;61 62;62 63;63 64;64 65;65 66;66 67;67 68;54 69;56 70;57 71;59 72;61 73;63 74;64 75;66 76;68 77];
             obj.V_slack = 1.02;
-            obj.dPnom = [-0.02616;0.03384;-0.02616;0.03384;-0.02616;0.03384;-0.02624;0.02624;-0.00664;0.0332;-0.0284;0.0284;-0.0284;0.04256;-0.04256;0.04264;-0.04264;0.0284;-0.0284;0.0284;-0.04256;0.04256;-0.04264;0.04264;-0.02896;0.02904;-0.02904;0.02904;-0.04336;0.0436;-0.0436;0.0436;-0.0436;0.0228;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.0376;0.0148;-0.03784;0.01496;-0.03784;0.01496;-0.03784;0.01496;-0.03784];
+            obj.dPnom = 5*[-0.02616;0.03384;-0.02616;0.03384;-0.02616;0.03384;-0.02624;0.02624;-0.00664;0.0332;-0.0284;0.0284;-0.0284;0.04256;-0.04256;0.04264;-0.04264;0.0284;-0.0284;0.0284;-0.04256;0.04256;-0.04264;0.04264;-0.02896;0.02904;-0.02904;0.02904;-0.04336;0.0436;-0.0436;0.0436;-0.0436;0.0228;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.0376;0.0148;-0.03784;0.01496;-0.03784;0.01496;-0.03784;0.01496;-0.03784];
             obj.Tflex = [13;23;17;11;19;18;17;15;13;13;11;12;6;18;12;16;12;15;18;16;14;8;14;16;12;10;15;23;13;24;17;14;14;14;15;9;12;10;14;15;17;14;14;7;20;7;24;12;10;17;20;19;17];
             obj.ratings = [22.5;6.82;6.82;4.84;6.82;6.82;4.84;6.82;6.82;4.84;6.82;6.82;6.82;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;4.84;4.84;4.84;4.84;4.84];
             obj.Vmin = 0.95*ones(76,1);
@@ -81,7 +49,11 @@ classdef ANM_System < matlab.mixin.Copyable
             % Init some internal matrices and vectors.
             obj.Yconj = conj(obj.Y);
             obj.flex_state = zeros(53,1);
+            obj.dP_flex = zeros(53,1);
             obj.curt_state = 1e2*ones(59,1);
+            obj.last_flex_act = zeros(53,1);
+            obj.flex_act = zeros(53,1);
+            obj.curt_insts = 1e2*ones(59,1);
             obj.q = 1;
             obj.V = ones(76,1);
             
@@ -93,52 +65,172 @@ classdef ANM_System < matlab.mixin.Copyable
             obj.ir = 0;
             obj.renew_prod();
             
-            % Compute initial electrical state
-            obj.P_buses = obj.dev2bus*[-obj.Ploads; obj.Pgens]/1e6;
-            obj.Q_buses = obj.dev2bus*([-obj.Ploads; obj.Pgens].*obj.qp)/1e6;
-            obj.comp_elec_state();
+            % Electrical quantities are not computed initially.
+            obj.computed = 0;
         end
         
-        function reward = transition(obj, flex_act, curt_gen)
-            % TRANSITION Simulate a transistion of the system and compute
-            % the associated reward.
-            %   reward = obj.transition(flex_act, curt_gen) simulate a
-            %   transition of the system from 'obj' instance with
-            %   'flex_act' (N_loads x 1) as flexibility activation
-            %   instructions (0's and 1's) and 'curt_gen' (N_gens x 1)
-            %   as curtailment instructions (maximal level of productoin
-            %   in MW).
+        function price = getCurtPrice(obj, quarter)
+            % GETCURTPRICE Get the cost of curtailing generation per MWh 
+            % for the specified quarter of an hour the day.
+            %   C = GETCURTPRICE(OBJ, QUARTER) or
+            %   C = OBJ.GETCURTPRICE(QUARTER) returns in C the cost of
+            %   curtailement per MWh for QUARTER that belongs to {1,...,96}.
             
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            price = obj.curt_price(ceil(quarter/4));
+        end
+        
+        function s_curt = getCurtState(obj)
+            % GETCURTSTATE Get the last curtailment instructions, i.e. the
+            % power production limits that are currently active.
+            
+            s_curt = obj.curt_state;
+        end
+        
+        function deltaP = getFlexOffsets(obj)
+            % GETFLEXOFFSETS Get the current offsets in power injections of
+            % the flexible loads that is induced by the current modulation.
+            deltaP = obj.dP_flex;
+        end
+        
+        function s_flex = getFlexState(obj)
+            % GETFLEXSTATE Get the state (number of active periods left) of
+            % flexible loads.
+            s_flex = obj.flex_state;
+        end
+        
+        function I_magn = getI(obj)
+            % GETI Get the magnitude of the currents in the links of the
+            % network, in per unit.
+            
+            if not(obj.computed)
+                obj.comp_elec_state();
+            end
+             % Get current magnitude [p.u.] in links.
+            I_magn = obj.I;
+        end
+
+        function P_curts = getPCurtGens(obj)
+            % GETPCURTGENS Get the active power injection of generators, in
+            % MW, accounting for curtailment instructions.
+            
+            P_curts = min(obj.Pgens/1e6, obj.curt_state);
+        end
+        
+        function P_gens = getPGens(obj)
+            % GETPGENS Get the potential (without curtailment) active power
+            % injection of generators, in MW.
+            
+            P_gens = obj.Pgens/1e6;
+        end
+        
+        function P_loads = getPLoads(obj)
+            % GETPLOADS Get the baseline (without modulation) active power
+            % injection of loads, in MW.
+            
+            P_loads = -obj.Ploads/1e6;
+        end
+        
+        function P_mod = getPModLoads(obj)
+            % GETPMODLOADS Get the active power injection of loads, in MW,
+            % accounting the modulations.
+            
+            P_mod = -obj.Ploads/1e6 + obj.dP_flex;
+        end
+        
+        function quarter = getQuarter(obj)
+            % GETQUARTER Get the quarter of an hour in day of the current
+            % time period.
+            
+            quarter = obj.q;
+        end
+        
+        function reward = getReward(obj)
+            % GETREWARD Return the instantaneous reward associeted to the
+            % last transition of the system.
+            
+            if not(obj.computed)
+                obj.comp_elec_state();
+            end
+            
+            % Compute last transition's reward
+            reward = - sum(obj.curt_price(ceil(obj.q/4))*max(obj.Pgens/1e6 - obj.curt_state, 0))/4 - sum(15*obj.last_flex_act.*abs(obj.dPnom)) - sum(1e5*(obj.V > obj.Vmax)) - sum(1e5*(obj.V < obj.Vmin)) - sum(1e5*(obj.I > obj.ratings));
+        end
+        
+        function ir = getSolarIr(obj)
+            % GETSOLARIR Get the current solar irradiance, in W per m^2.
+            
+            ir = obj.ir;
+        end
+        
+        function V_magn = getV(obj)
+           % GETV Get the magnitude of the voltages at the buses, in per
+           % unit, including the slack bus.
+            
+            if not(obj.computed)
+                obj.comp_elec_state();
+            end
+            
+            V_magn = [obj.V_slack; obj.V];
+        end
+        
+        function ws = getWindSpeed(obj)
+            % GETWINDSPEED Get the current wind speed, in meters per second.
+            
+            ws = obj.ws;
+        end
+        
+        function setCurtailment(obj, curt_gen)
+            % SETCURTAILMENT Set the curtailment instructions for the next
+            % period. The size of the input vector must be (N_gens x 1).
+            
             % Check validity of inputs
-            if sum(size(flex_act) == size(obj.flex_state)) ~= 2
-                error('Error: ''flex_act'' must have the same size as ''flex_state''.');
-            end
-            
-            if (sum(flex_act > 1) + sum(flex_act < 0)) ~= 0
-                error('Error: ''flex_act'' must be a vector of 0''s (no activation) and 1''s (activation).');
-            end
-                        
-            if sum((flex_act == 1).*obj.flex_state) ~= 0;
-                error('Error: trying to activate a flexibility service which is still running.');
-            end
-            
             if sum(curt_gen < 0) ~= 0
                 error('Error: a production level upper limit cannot be negative.');
             end
             
             if sum(size(curt_gen) == size(obj.curt_state)) ~= 2
-                error('Error: ''curt_gen'' must have the same size as ''curt_state''.');
+                error('Error: ''curt_gen'' must be a column vector of length ''N_gens''.');
             end
             
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            % Compute new state
+            % Update curtailment instructions
+            obj.curt_insts = curt_gen;
+        end
+        
+        function setFlexAct(obj, flex_act)
+            % SETFLEXACT Set the activation instructions of the flexible
+            % services for the next period. The size of the input vector
+            % must be (N_loads x 1).
             
-            % Update curtailment state
-            obj.curt_state = curt_gen;
+            % Check validity of inputs
+            if sum(size(flex_act) == size(obj.flex_state)) ~= 2
+                error('Error: ''flex_act'' must be a column vector of length ''N_loads''.');
+            end
             
+            if (sum(flex_act > 1) + sum(flex_act < 0)) ~= 0
+                error('Error: ''flex_act'' must be a vector of 0''s (no activation) and 1''s (activation).');
+            end
+            
+            if sum((flex_act == 1).*obj.flex_state) ~= 0;
+                error('Error: trying to activate a flexibility service that is still running.');
+            end
+            
+            % Update activation instructions
+            obj.flex_act = flex_act;
+        end
+        
+        function transition(obj)
+            % TRANSITION Simulate a transistion of the system, accounting
+            % for the control actions provided through SETCURTAILMENT and 
+            % SETFLEXACT functions. The reward associated to this
+            % transition can be obtained by calling GETREWARD function.
+            
+            obj.computed = 0;
+                        
             % Update state of flexible loads.
-            obj.flex_state = max(obj.flex_state-1, 0) + flex_act.*obj.Tflex;            
+            obj.flex_state = max(obj.flex_state-1, 0) + obj.flex_act.*obj.Tflex;
+            
+            % Update curtailment state.
+            obj.curt_state = obj.curt_insts;
             
             % Compute value of load modulation signals.
             obj.dP_flex = (obj.flex_state>0).*obj.dPnom.*sin(1.8*pi*((obj.Tflex-obj.flex_state+1) - 0.5*(obj.Tflex+1))./(obj.Tflex-1));
@@ -150,76 +242,15 @@ classdef ANM_System < matlab.mixin.Copyable
             % Determine production of distributed generators.
             obj.renew_prod();
             
-            % Aggregate power injections at buses
-            obj.P_buses = obj.dev2bus*[-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)]/1e6;
-            obj.Q_buses = obj.dev2bus*([-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)].*obj.qp)/1e6;
+            % Advance the quarter of an hour of the day.
+            obj.q = mod(obj.q, 96)+1;       
             
-            % Run a power flow to determine the electrical state of the
-            % network
-            obj.comp_elec_state();
-            
-            % Advance the quarter of hour of the day.
-            obj.q = mod(obj.q, 96)+1;
-            
-            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-            % Compute the transition's reward
-            reward = - sum(obj.curt_price(ceil(obj.q/4))*max(obj.Pgens/1e6 - obj.curt_state, 0))/4 - sum(15*flex_act.*abs(obj.dPnom)) - sum(1e5*(obj.V > obj.Vmax)) - sum(1e5*(obj.V < obj.Vmin)) - sum(1e5*(obj.I > obj.ratings));
-            
+            % Reset instructions for next period.
+            obj.last_flex_act = obj.flex_act;
+            obj.flex_act = zeros(53,1);
+            obj.curt_insts = 1e2*ones(59,1);
         end
-        
-        function P_loads = getPLoads(obj)
-            % Get the active power injection of loads [MW].
-            P_loads = -obj.Ploads/1e6;
-        end
-        
-        function P_gens = getPGens(obj)
-            % Get the active power injection of generators [MW].
-            P_gens = obj.Pgens/1e6;
-        end
-        
-        function ir = getSolarIr(obj)
-            % Get the solar irradiance [W/m^2].
-            ir = obj.ir;
-        end
-        
-        function ws = getWindSpeed(obj)
-            % Get the wind speed [m/s].
-            ws = obj.ws;
-        end
-        
-        function s_flex = getFlexState(obj)
-            % Get the state (number of active periods left) of flexible
-            % loads.
-            s_flex = obj.flex_state;
-        end
-        
-        function s_curt = getCurtState(obj)
-            % Get the last curtailment instructions (power production
-            % limits that are currently active).
-            s_curt = obj.curt_state;
-        end
-        
-        function quarter = getQuarter(obj)
-            % Get the quarter of hour in day of the current time period.
-            quarter = obj.q;
-        end
-        
-        function deltaP = getFlexSignals(obj)
-            % Get the current offsets in power injections of the flexible
-            % loads.
-            deltaP = obj.dP_flex;
-        end
-        
-        function V_magn = getV(obj)
-            % Get voltage magnitude [p.u.] at buses (including slack bus).
-            V_magn = [obj.V_slack; obj.V];
-        end
-        
-        function I_magn = getI(obj)
-             % Get current magnitude [p.u.] in links.
-            I_magn = obj.I;
-        end
-        
+                
     end
     
     properties(GetAccess = 'private', SetAccess = 'private')
@@ -229,13 +260,18 @@ classdef ANM_System < matlab.mixin.Copyable
         ir; % irradiance [W/m^2]
         Ploads;  % power consumption of loads [W]
         Pgens; % power injection of generators [W]
+        last_flex_act; % last activation instructions for flexible loads
+        flex_act; % activation instructions for flexible loads
         flex_state; % state of flexibility services of loads
-        curt_state; % production upper limit imposed to generators.
+        curt_state; % production upper limit imposed to generators for current period.
+        curt_insts; % curtailment instructions for next period.
         P_buses; % active power injection at buses [p.u.]
         Q_buses; % reactive power injection at buses [p.u.]
         V; % bus voltages [p.u.]
         I; % current magnitudes [p.u.]
         dP_flex; % value of load modulation signals [MW]
+        computed; % 0 if electrical quantities are not computed for current state, 1 otherwise
+        curt_price; % curtailment price per MWh, constant per hour
     end
     
     methods(Access = private)
@@ -459,12 +495,12 @@ classdef ANM_System < matlab.mixin.Copyable
                         230.5875*obj.ir;
                         91.1625*obj.ir;
                         230.5875*obj.ir;
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
-                        (10/6)*min(40000*(obj.ws-3.5).^2,3000000)*(obj.ws>=3.5)*(obj.ws<=25)];
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25);
+                        (10/6)*min(15000*(obj.ws-3.5).^3,3000000)*(obj.ws>=3.5)*(obj.ws<=25)];
         end
         
         function weather_trans(obj)
@@ -477,6 +513,9 @@ classdef ANM_System < matlab.mixin.Copyable
         end
         
         function comp_elec_state(obj)
+            % Aggregate power injections at buses
+            obj.P_buses = obj.dev2bus*[-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)]/1e6;
+            obj.Q_buses = obj.dev2bus*([-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)].*obj.qp)/1e6;
             
             x_0 = vertcat(ones(obj.N_buses-1,1),zeros(obj.N_buses-1,1));
             
@@ -500,7 +539,8 @@ classdef ANM_System < matlab.mixin.Copyable
             f = [0; obj.V.*sin(x(obj.N_buses:end))];
             
             obj.I = sqrt( (obj.g_ij + obj.b_ij).^2 .* ( (e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2 ) );
-
+            
+            obj.computed = 1;
         end
         
     end
