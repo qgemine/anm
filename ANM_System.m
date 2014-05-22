@@ -24,9 +24,12 @@ classdef ANM_System < matlab.mixin.Copyable
     end
     
     methods
-        function obj = ANM_System()
+        function obj = ANM_System(solver)
             % ANM_SYSTEM Initialize the data members of the class and 
-            % generate the initial state of the system.
+            % generate the initial state of the system. The name of the
+            % solver can optionally be specifed to YALMIP. 
+            %   obj = ANM_SYSTEM(); will use the default solver
+            %   obj = ANM_SYSTEM('ipopt'); will use ipopt (if available)
             
             % Set system's parameters.
             obj.N_buses = 77;
@@ -67,6 +70,16 @@ classdef ANM_System < matlab.mixin.Copyable
             
             % Electrical quantities are not computed initially.
             obj.computed = 0;
+            
+            obj.V_vars = sdpvar(2*obj.N_buses,1);
+            obj.V_complex = obj.V_vars(1:obj.N_buses)+1i*obj.V_vars((obj.N_buses+1):end);
+            obj.V_init = vertcat([obj.V_slack; ones(obj.N_buses-1,1)],zeros(obj.N_buses,1));
+            
+            if nargin > 0
+                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'solver', solver);
+            else
+                obj.params = sdpsettings('usex0', 1, 'verbose', 0);
+            end
         end
         
         function price = getCurtPrice(obj, quarter)
@@ -272,6 +285,10 @@ classdef ANM_System < matlab.mixin.Copyable
         dP_flex; % value of load modulation signals [MW]
         computed; % 0 if electrical quantities are not computed for current state, 1 otherwise
         curt_price; % curtailment price per MWh, constant per hour
+        V_vars; % vector of the unknow real and imaginary parts of the voltages.
+        V_complex; % vector of the unknow complex voltages.
+        V_init; % initial value for unknow voltages when solving PF equations.
+        params; % YALMIP parameters.
     end
     
     methods(Access = private)
@@ -517,29 +534,22 @@ classdef ANM_System < matlab.mixin.Copyable
             obj.P_buses = obj.dev2bus*[-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)]/1e6;
             obj.Q_buses = obj.dev2bus*([-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)].*obj.qp)/1e6;
             
-            x_0 = vertcat(ones(obj.N_buses-1,1),zeros(obj.N_buses-1,1));
+            % Build system of power flow equations
+            assign(obj.V_vars, obj.V_init);
+            S_injs = obj.Yconj*conj(obj.V_complex).*obj.V_complex;
+            pf_eqs = [real(S_injs(2:end)) == obj.P_buses, imag(S_injs(2:end)) == obj.Q_buses];
+            pf_eqs = pf_eqs + [obj.V_vars(1) == obj.V_slack, obj.V_vars(obj.N_buses+1) == 0];
             
-            options = optimset('Display','none','MaxFunEval',100000,'MaxIter',1000,'TolFun',1e-5,'TolX',1e-4);%,'Algorithm','trust-region-reflective');
-            [x, ~, exitFlag]= fsolve(@pf_rect,x_0,options);
-
-            function sol = pf_rect(x)
-                v = [obj.V_slack; (x(1:obj.N_buses-1) + 1i*x(obj.N_buses:2*obj.N_buses-2))];
-                S = obj.Yconj*conj(v).*v;
-                res = -obj.P_buses - 1i*obj.Q_buses + S(2:end);
-                sol = [real(res); imag(res)];
-            end
-
-            if exitFlag~=1
-                error('Error: unable to compute electrical state.');
-            end
+            % Solve power flow equations
+            solvesdp(pf_eqs, [], obj.params);
             
-            obj.V = x(1:obj.N_buses-1);
-
-            e = [obj.V_slack; obj.V.*cos(x(obj.N_buses:end))];
-            f = [0; obj.V.*sin(x(obj.N_buses:end))];
-            
+            % Get the solution
+            obj.V = abs(double(obj.V_vars(2:obj.N_buses)) + 1i*double(obj.V_vars(obj.N_buses+2:end)));
+            e = [obj.V_slack; double(obj.V_vars(2:obj.N_buses))];
+            f = [0; double(obj.V_vars(obj.N_buses+2:end))];
             obj.I = sqrt( (obj.g_ij + obj.b_ij).^2 .* ( (e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2 ) );
             
+            % Indicate that the electrical state is now computed.
             obj.computed = 1;
         end
         
