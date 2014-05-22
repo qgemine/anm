@@ -7,3 +7,8 @@ Problem formulation
 ---
 
 The generic formulation of the ANM problem is motivated and described in [this paper](http://arxiv.org/pdf/1405.2806.pdf), which details also the procedure used for building the test instance.
+
+Installation
+---
+
+This code runs on Matlab and requires the Statistics and Optimization toolboxes as well as the third-party [YALMIP toolbox](http://users.isy.liu.se/johanl/yalmip/) (free and easy to install).
