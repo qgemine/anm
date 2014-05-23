@@ -1,5 +1,5 @@
 obj = ANM_System();
-%uncomment for YALMIP to use Ipopt (if installed)
+%uncomment next line for YALMIP to use Ipopt (if installed)
 %obj = ANM_System('ipopt');
 
 V = ones(96, 77);

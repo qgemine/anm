@@ -27,7 +27,8 @@ classdef ANM_System < matlab.mixin.Copyable
         function obj = ANM_System(solver)
             % ANM_SYSTEM Initialize the data members of the class and 
             % generate the initial state of the system. The name of the
-            % solver can optionally be specifed to YALMIP. 
+            % solver can optionally be specifed to YALMIP.
+            % e.g.
             %   obj = ANM_SYSTEM(); will use the default solver
             %   obj = ANM_SYSTEM('ipopt'); will use ipopt (if available)
             
@@ -74,11 +75,12 @@ classdef ANM_System < matlab.mixin.Copyable
             obj.V_vars = sdpvar(2*obj.N_buses,1);
             obj.V_complex = obj.V_vars(1:obj.N_buses)+1i*obj.V_vars((obj.N_buses+1):end);
             obj.V_init = vertcat([obj.V_slack; ones(obj.N_buses-1,1)],zeros(obj.N_buses,1));
+            obj.S_injs = obj.Yconj*conj(obj.V_complex).*obj.V_complex;
             
             if nargin > 0
-                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'solver', solver);
+                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'solver', solver, 'cachesolvers', 1);
             else
-                obj.params = sdpsettings('usex0', 1, 'verbose', 0);
+                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'cachesolvers', 1);
             end
         end
         
@@ -286,8 +288,9 @@ classdef ANM_System < matlab.mixin.Copyable
         computed; % 0 if electrical quantities are not computed for current state, 1 otherwise
         curt_price; % curtailment price per MWh, constant per hour
         V_vars; % vector of the unknow real and imaginary parts of the voltages.
-        V_complex; % vector of the unknow complex voltages.
-        V_init; % initial value for unknow voltages when solving PF equations.
+        V_complex; % vector of the unknown complex voltages.
+        V_init; % initial value for unknown voltages when solving PF equations.
+        S_injs; % unknown apparent power injections.
         params; % YALMIP parameters.
     end
     
@@ -536,17 +539,16 @@ classdef ANM_System < matlab.mixin.Copyable
             
             % Build system of power flow equations
             assign(obj.V_vars, obj.V_init);
-            S_injs = obj.Yconj*conj(obj.V_complex).*obj.V_complex;
-            pf_eqs = [real(S_injs(2:end)) == obj.P_buses, imag(S_injs(2:end)) == obj.Q_buses];
+            pf_eqs = [real(obj.S_injs(2:end)) == obj.P_buses, imag(obj.S_injs(2:end)) == obj.Q_buses];
             pf_eqs = pf_eqs + [obj.V_vars(1) == obj.V_slack, obj.V_vars(obj.N_buses+1) == 0];
             
             % Solve power flow equations
             solvesdp(pf_eqs, [], obj.params);
             
             % Get the solution
-            obj.V = abs(double(obj.V_vars(2:obj.N_buses)) + 1i*double(obj.V_vars(obj.N_buses+2:end)));
-            e = [obj.V_slack; double(obj.V_vars(2:obj.N_buses))];
-            f = [0; double(obj.V_vars(obj.N_buses+2:end))];
+            obj.V = abs(value(obj.V_vars(2:obj.N_buses)) + 1i*value(obj.V_vars(obj.N_buses+2:end)));
+            e = [obj.V_slack; value(obj.V_vars(2:obj.N_buses))];
+            f = [0; value(obj.V_vars(obj.N_buses+2:end))];
             obj.I = sqrt( (obj.g_ij + obj.b_ij).^2 .* ( (e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2 ) );
             
             % Indicate that the electrical state is now computed.
