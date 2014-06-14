@@ -1,30 +1,35 @@
+% Initialize random generator.
+s = RandStream('mt19937ar', 'seed', mod(round(now*1e6), 2^32));
+RandStream.setGlobalStream(s);
+
 obj = ANM_System();
 %uncomment next line for YALMIP to use Ipopt (if installed)
 %obj = ANM_System('ipopt');
 
-V = ones(96, 77);
+V = NaN(96, 77);
 V(end,:) = obj.getV()';
 
-I = zeros(96, 76);
+I = NaN(96, 76);
 I(end,:) = obj.getI()'./obj.ratings';
 
 P = zeros(96, 4);
 P(end,:) = [sum(obj.getPLoads()) sum(obj.getPModLoads()) sum(obj.getPGens()) sum(obj.getPCurtGens())]';
 
 r = zeros(96,1);
-r(end) = 0;
 
 x = -94:1;
 
+model = [];
+
 for i=1:1000
     x = x+1;
-
+    
     obj.transition();
     r(1:end) = [r(2:end); obj.getReward()];
     V(:,:) = [V(2:end,:); obj.getV()'];
     I(:,:) = [I(2:end,:); obj.getI()'./obj.ratings'];
     P(:,:) = [P(2:end,:); [sum(obj.getPLoads()) sum(obj.getPModLoads()) sum(obj.getPGens()) sum(obj.getPCurtGens())]];
-
+    
     clf;
     axes('Position', [0.06 0.52 0.44 0.44]); hold on;
     title('Evolution of voltage magnitudes (in p.u.)', 'FontSize', 18, 'Interpreter','latex');
@@ -58,7 +63,7 @@ for i=1:1000
     plot(x, P(:,4), 'Color', 'k', 'DisplayName', 'DGs');
     plot(x, P(:,3), 'k:', 'HandleVisibility','off');
     xlim([x(1) x(end)]);
-    ylim([min(-22.5,min(P(:,2))) max(30,max(P(:,4)))]);
+    ylim([min(-22.5,min(P(:,2))) max(30,max(P(:,3)))]);
     set(gca, 'XTickLabel', [],'XTick', [], 'TickDir', 'out', 'FontSize', 12)
     legend('Location','NorthWest');
     box on;

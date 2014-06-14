@@ -42,7 +42,7 @@ classdef ANM_System < matlab.mixin.Copyable
             obj.g_ij = [0;386.821496494312;386.821496494312;1491.83792519772;386.821496494312;386.821496494312;1491.83792519772;386.821496494312;386.821496494312;1491.83792519772;296.395870782097;296.395870782097;296.395870782097;1404.75327828734;1404.75327828734;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;1718.59988014193;1718.59988014193;1718.59988014193;1718.59988014193;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;842.282823874705;1718.59988014193;1718.59988014193;1718.59988014193;1718.59988014193;684.673249584679;684.673249584679;684.673249584679;684.673249584679;684.673249584679;684.673249584679;684.673249584679;684.673249584679;684.673249584679;1631.12098861358;1631.12098861358;1631.12098861358;1631.12098861358;1631.12098861358;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;944.107420968271;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802;1277.50177430802];
             obj.b_ij = [-238.0952;-200.433513394501;-200.433513394501;-406.430203980147;-200.433513394501;-200.433513394501;-406.430203980147;-200.433513394501;-200.433513394501;-406.430203980147;-153.546432307417;-153.546432307417;-153.546432307417;-381.380980530501;-381.380980530501;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-466.114727639969;-466.114727639969;-466.114727639969;-466.114727639969;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-648.953477723598;-466.114727639969;-466.114727639969;-466.114727639969;-466.114727639969;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-527.131204151345;-442.773648397731;-442.773648397731;-442.773648397731;-442.773648397731;-442.773648397731;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-726.891728625195;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796;-346.975790552796];
             obj.links = [1 2;2 3;3 4;4 5;2 6;6 7;7 8;2 9;9 10;10 11;2 12;12 13;13 14;13 15;14 16;2 17;17 18;18 19;19 20;20 21;21 22;22 23;18 24;20 25;21 26;23 27;2 28;28 29;29 30;30 31;31 32;32 33;33 34;29 35;31 36;32 37;34 38;2 39;39 40;40 41;41 42;42 43;43 44;44 45;45 46;46 47;40 48;42 49;43 50;45 51;47 52;2 53;53 54;54 55;55 56;56 57;57 58;58 59;59 60;60 61;61 62;62 63;63 64;64 65;65 66;66 67;67 68;54 69;56 70;57 71;59 72;61 73;63 74;64 75;66 76;68 77];
-            obj.V_slack = 1.02;
+            obj.V_slack = 1.015;
             obj.dPnom = 5*[-0.02616;0.03384;-0.02616;0.03384;-0.02616;0.03384;-0.02624;0.02624;-0.00664;0.0332;-0.0284;0.0284;-0.0284;0.04256;-0.04256;0.04264;-0.04264;0.0284;-0.0284;0.0284;-0.04256;0.04256;-0.04264;0.04264;-0.02896;0.02904;-0.02904;0.02904;-0.04336;0.0436;-0.0436;0.0436;-0.0436;0.0228;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.02296;0.02296;-0.0376;0.0148;-0.03784;0.01496;-0.03784;0.01496;-0.03784;0.01496;-0.03784];
             obj.Tflex = [13;23;17;11;19;18;17;15;13;13;11;12;6;18;12;16;12;15;18;16;14;8;14;16;12;10;15;23;13;24;17;14;14;14;15;9;12;10;14;15;17;14;14;7;20;7;24;12;10;17;20;19;17];
             obj.ratings = [22.5;6.82;6.82;4.84;6.82;6.82;4.84;6.82;6.82;4.84;6.82;6.82;6.82;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;4.84;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;8.86;4.84;4.84;4.84;4.84;4.84;4.84;4.84;4.84;4.84];
@@ -72,16 +72,29 @@ classdef ANM_System < matlab.mixin.Copyable
             % Electrical quantities are not computed initially.
             obj.computed = 0;
             
-            obj.V_vars = sdpvar(2*obj.N_buses,1);
-            obj.V_complex = obj.V_vars(1:obj.N_buses)+1i*obj.V_vars((obj.N_buses+1):end);
-            obj.V_init = vertcat([obj.V_slack; ones(obj.N_buses-1,1)],zeros(obj.N_buses,1));
-            obj.S_injs = obj.Yconj*conj(obj.V_complex).*obj.V_complex;
+            % Initial voltage values when solving power flow equations.
+            obj.V_init = [obj.V_slack; ones(obj.N_buses-1,1)];
             
             if nargin > 0
                 obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'solver', solver, 'cachesolvers', 1);
             else
                 obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'cachesolvers', 1);
             end
+            
+            % Create yalmip model for power flow equations.
+            % Define variables
+            V_complex = sdpvar(obj.N_buses,1, 'full','complex');
+            assign(V_complex, obj.V_init);
+            S_injs = obj.Yconj*conj(V_complex).*V_complex;
+            P_inj = sdpvar(obj.N_buses-1,1);
+            Q_inj = sdpvar(obj.N_buses-1,1);
+            
+            % Build system of power flow equations
+            
+            pf_eqs = [real(S_injs(2:end)) == P_inj, imag(S_injs(2:end)) == Q_inj];
+            pf_eqs = [pf_eqs, real(V_complex(1)) == obj.V_slack, imag(V_complex(1)) == 0];
+            
+            obj.model = optimizer(pf_eqs, [], obj.params, {P_inj,Q_inj}, {V_complex});
         end
         
         function price = getCurtPrice(obj, quarter)
@@ -123,6 +136,24 @@ classdef ANM_System < matlab.mixin.Copyable
              % Get current magnitude [p.u.] in links.
             I_magn = obj.I;
         end
+        
+        function op_consts = getOpConstraints(obj, v_complex)
+            % GETOPCONSTRAINTS Return the operational constraints of the
+            % network using the variables of the complex voltages that are
+            % provided.
+            
+            % Check input
+            if sum(size(v_complex) == [obj.N_buses 1]) ~= 2
+                error('Vector of complex voltages must have a size of (N_buses X 1).');
+            end
+            
+            e = real(v_complex);
+            f = imag(v_complex);
+            current = ((obj.g_ij + obj.b_ij).^2 .* ((e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2));
+            
+            op_consts = [ obj.Vmin <= abs(v_complex(2:end)) <= obj.Vmax ...
+                          current <= obj.ratings.^2 ];
+        end
 
         function P_curts = getPCurtGens(obj)
             % GETPCURTGENS Get the active power injection of generators, in
@@ -137,7 +168,7 @@ classdef ANM_System < matlab.mixin.Copyable
             
             P_gens = obj.Pgens/1e6;
         end
-        
+                
         function P_loads = getPLoads(obj)
             % GETPLOADS Get the baseline (without modulation) active power
             % injection of loads, in MW.
@@ -150,6 +181,24 @@ classdef ANM_System < matlab.mixin.Copyable
             % accounting the modulations.
             
             P_mod = -obj.Ploads/1e6 + obj.dP_flex;
+        end
+        
+        function PQofV = getPQofV(obj, v_complex)
+            % GETPFEQS Return a vector of non-linear expressions that
+            % define the active and reactive power injections at buses
+            % (excepted the slack bus), as a function of the complex 
+            % voltage variables that are provided.
+            
+            % Check input
+            if (sum(size(v_complex) == [obj.N_buses 1]) ~= 2)
+                error('Size of complex voltages must be (obj.N_buses X 1).'); 
+            end
+            
+            % Build power flow equations.
+            S = obj.Yconj*conj(v_complex).*(v_complex);
+            PQofV = S(2:end);
+            %pf_eqs = pf_eqs + [real(v_complex(1)) == obj.V_slack, imag(v_complex(1)) == 0];
+            
         end
         
         function quarter = getQuarter(obj)
@@ -225,6 +274,11 @@ classdef ANM_System < matlab.mixin.Copyable
                 error('Error: ''flex_act'' must be a vector of 0''s (no activation) and 1''s (activation).');
             end
             
+            if flex_act ~= floor(flex_act)
+                 display(flex_act');
+                 error('Error: ''flex_act'' must be a vector of 0''s (no activation) and 1''s (activation).');
+            end
+            
             if sum((flex_act == 1).*obj.flex_state) ~= 0;
                 error('Error: trying to activate a flexibility service that is still running.');
             end
@@ -287,11 +341,9 @@ classdef ANM_System < matlab.mixin.Copyable
         dP_flex; % value of load modulation signals [MW]
         computed; % 0 if electrical quantities are not computed for current state, 1 otherwise
         curt_price; % curtailment price per MWh, constant per hour
-        V_vars; % vector of the unknow real and imaginary parts of the voltages.
-        V_complex; % vector of the unknown complex voltages.
         V_init; % initial value for unknown voltages when solving PF equations.
-        S_injs; % unknown apparent power injections.
         params; % YALMIP parameters.
+        model;
     end
     
     methods(Access = private)
@@ -534,21 +586,16 @@ classdef ANM_System < matlab.mixin.Copyable
         
         function comp_elec_state(obj)
             % Aggregate power injections at buses
-            obj.P_buses = obj.dev2bus*[-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)]/1e6;
-            obj.Q_buses = obj.dev2bus*([-obj.Ploads+obj.dP_flex*1e6; min(obj.Pgens, 10e6*obj.curt_state)].*obj.qp)/1e6;
-            
-            % Build system of power flow equations
-            assign(obj.V_vars, obj.V_init);
-            pf_eqs = [real(obj.S_injs(2:end)) == obj.P_buses, imag(obj.S_injs(2:end)) == obj.Q_buses];
-            pf_eqs = pf_eqs + [obj.V_vars(1) == obj.V_slack, obj.V_vars(obj.N_buses+1) == 0];
+            obj.P_buses = obj.dev2bus*[obj.getPModLoads(); obj.getPCurtGens()];
+            obj.Q_buses = obj.dev2bus*([obj.getPModLoads(); obj.getPCurtGens()].*obj.qp);
             
             % Solve power flow equations
-            solvesdp(pf_eqs, [], obj.params);
+            V_sol = obj.model{{obj.P_buses, obj.Q_buses}};
             
             % Get the solution
-            obj.V = abs(value(obj.V_vars(2:obj.N_buses)) + 1i*value(obj.V_vars(obj.N_buses+2:end)));
-            e = [obj.V_slack; value(obj.V_vars(2:obj.N_buses))];
-            f = [0; value(obj.V_vars(obj.N_buses+2:end))];
+            obj.V = abs(V_sol(2:end));
+            e = real(V_sol);
+            f = imag(V_sol);
             obj.I = sqrt( (obj.g_ij + obj.b_ij).^2 .* ( (e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2 ) );
             
             % Indicate that the electrical state is now computed.
