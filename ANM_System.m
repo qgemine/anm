@@ -24,13 +24,9 @@ classdef ANM_System < matlab.mixin.Copyable
     end
     
     methods
-        function obj = ANM_System(solver)
+        function obj = ANM_System()
             % ANM_SYSTEM Initialize the data members of the class and 
-            % generate the initial state of the system. The name of the
-            % solver can optionally be specifed to YALMIP.
-            % e.g.
-            %   obj = ANM_SYSTEM(); will use the default solver
-            %   obj = ANM_SYSTEM('ipopt'); will use ipopt (if available)
+            % generate the initial state of the system.
             
             % Set system's parameters.
             obj.N_buses = 77;
@@ -75,12 +71,6 @@ classdef ANM_System < matlab.mixin.Copyable
             % Initial voltage values when solving power flow equations.
             obj.V_init = [obj.V_slack; ones(obj.N_buses-1,1)];
             
-            if nargin > 0
-                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'solver', solver, 'cachesolvers', 1);
-            else
-                obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'cachesolvers', 1);
-            end
-            
             % Create yalmip model for power flow equations.
             % Define variables
             V_complex = sdpvar(obj.N_buses,1, 'full','complex');
@@ -90,10 +80,10 @@ classdef ANM_System < matlab.mixin.Copyable
             Q_inj = sdpvar(obj.N_buses-1,1);
             
             % Build system of power flow equations
-            
             pf_eqs = [real(S_injs(2:end)) == P_inj, imag(S_injs(2:end)) == Q_inj];
             pf_eqs = [pf_eqs, real(V_complex(1)) == obj.V_slack, imag(V_complex(1)) == 0];
             
+            obj.params = sdpsettings('usex0', 1, 'verbose', 0, 'cachesolvers', 1);
             obj.model = optimizer(pf_eqs, [], obj.params, {P_inj,Q_inj}, {V_complex});
         end
         
@@ -137,24 +127,6 @@ classdef ANM_System < matlab.mixin.Copyable
             I_magn = obj.I;
         end
         
-        function op_consts = getOpConstraints(obj, v_complex)
-            % GETOPCONSTRAINTS Return the operational constraints of the
-            % network using the variables of the complex voltages that are
-            % provided.
-            
-            % Check input
-            if sum(size(v_complex) == [obj.N_buses 1]) ~= 2
-                error('Vector of complex voltages must have a size of (N_buses X 1).');
-            end
-            
-            e = real(v_complex);
-            f = imag(v_complex);
-            current = ((obj.g_ij + obj.b_ij).^2 .* ((e(obj.links(:,1))-e(obj.links(:,2))).^2 + (f(obj.links(:,1))-f(obj.links(:,2))).^2));
-            
-            op_consts = [ obj.Vmin <= abs(v_complex(2:end)) <= obj.Vmax ...
-                          current <= obj.ratings.^2 ];
-        end
-
         function P_curts = getPCurtGens(obj)
             % GETPCURTGENS Get the active power injection of generators, in
             % MW, accounting for curtailment instructions.
@@ -182,25 +154,7 @@ classdef ANM_System < matlab.mixin.Copyable
             
             P_mod = -obj.Ploads/1e6 + obj.dP_flex;
         end
-        
-        function PQofV = getPQofV(obj, v_complex)
-            % GETPFEQS Return a vector of non-linear expressions that
-            % define the active and reactive power injections at buses
-            % (excepted the slack bus), as a function of the complex 
-            % voltage variables that are provided.
-            
-            % Check input
-            if (sum(size(v_complex) == [obj.N_buses 1]) ~= 2)
-                error('Size of complex voltages must be (obj.N_buses X 1).'); 
-            end
-            
-            % Build power flow equations.
-            S = obj.Yconj*conj(v_complex).*(v_complex);
-            PQofV = S(2:end);
-            %pf_eqs = pf_eqs + [real(v_complex(1)) == obj.V_slack, imag(v_complex(1)) == 0];
-            
-        end
-        
+                
         function quarter = getQuarter(obj)
             % GETQUARTER Get the quarter of an hour in day of the current
             % time period.
@@ -316,8 +270,8 @@ classdef ANM_System < matlab.mixin.Copyable
             
             % Reset instructions for next period.
             obj.last_flex_act = obj.flex_act;
-            obj.flex_act = zeros(53,1);
-            obj.curt_insts = 1e2*ones(59,1);
+            obj.flex_act = zeros(obj.N_loads,1);
+            obj.curt_insts = 1e2*ones(obj.N_gens,1);
         end
                 
     end
