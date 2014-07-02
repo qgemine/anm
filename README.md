@@ -23,7 +23,18 @@ Documentation for this class is available within Matlab&reg; by typing `doc ANM_
 
 ### Parameters of the test instance
 
-TODO
+The class has several public properties that describe the characteristics of the test instance. You get obtain a list of them by using the command `properties ANM_System`. Among other information, you can find the number of buses in the distribution network, its admittance matrix, the number of distributed generators and loads, the voltage and current limits, the duration of modulation signals, ...
+
+    >> inst = ANM_System();
+    >> display(['This test system relies on a ' num2str(inst.N_buses) '-bus network,' ...
+            ' to which ' num2str(inst.N_gens) ' generators and ' num2str(inst.N_loads) ...
+            ' loads are connected.']);
+    This test system relies on a 77-bus network, to which 59 generators and 53 loads are connected.
+    
+    >> display(['The average duration of modulation signals ' ...
+                'is ' num2str(mean(inst.Tflex)) ' periods.']);
+    The average duration of modulation signals is 14.6415 periods.
+
 
 ### Simulation of the system
 
