@@ -117,6 +117,38 @@ Activation instructions of flexible loads can be provided for the next time peri
     39 flexible services are running for a cumulated modulation of -0.08 MW
     ...
 
-### Using a control policy
+### Simulation of a control policy
 
-TODO
+A method `simulate` is provided to evaluate a control policy in a convenient way. It needs at least one argument, which is the method that must be call to get the control actions of the control policy. This method must return two variables. The first one is a cell array of two elements such that the first cell corresponds to curtailment instructions and the second one to activation instructions. The other variable that is returned is any kind of data structure that the control policy might need to preserve from one time step to the other. This last variable can be empty if it is not required. For better understanding, here is how this method is called into `simulate`:
+
+    % Get control actions using the policy.
+    [actions, model] = policy(syst, model); % syst is an instance of ANM_System
+    syst.setCurtailment(max(actions{1},0));
+    syst.setFlexAct(round(actions{2}));
+    % Trigger a transition of the system.
+    syst.transition()
+
+The other arguments of the method `simulate` are optional. If specified, the second argument defines a custom number of time steps over which the policy has to be simulated. Setting the third agument to 1 will display plots that illustrate the simulation run. The last argument can be used if a custom random generator must be used.
+
+Finally, the method returns a vector of the instantaneous rewards that have been observed for each transition of the system.
+
+The following command evaluates the illustrative control policy for 96 time steps. It also displays the plots that describe the simulation run.
+
+    >> r = simulate(@example_policy, 96, 1);
+    >> fprintf('The observed cumulated reward over the simulation run is %f.\n', sum(r));
+    Building optimization model (done once per simulation)...
+     * this step might last from a few seconds to a few minutes * 
+    Sampling trajectories of the system...
+    Clustering trajectories...
+    Solving mathematical program...
+    Time step 1 (reward = 0).
+    Sampling trajectories of the system...
+    Clustering trajectories...
+    Solving mathematical program...
+    Time step 2 (reward = 0).
+    ...
+    Sampling trajectories of the system...
+    Clustering trajectories...
+    Solving mathematical program...
+    Time step 96 (reward = -0.038056).
+    The observed cumulated reward over the simulation run is -379.527870.

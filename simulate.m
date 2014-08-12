@@ -1,6 +1,13 @@
 function rewards = simulate(policy, n_steps, figures, randstream)
+% SIMULATE Evaluate a control policy using simulation. If specified, the
+% second argument `n_steps` defines a custom number of time steps over
+% which the policy will be simulated. Setting the third agument `figures`
+% to one displays plots that illustrate the simulation run. The last
+% argument `ranstream` can be used if a custom random generator must be
+% used. The method returns a vector of the instantaneous rewards that have
+% been observed for each transition of the system.
 
-% Initialize random generator or use to one provided as parameter.
+% Initialize random generator or use the one provided as parameter.
 if nargin >= 4
     RandStream.setGlobalStream(randstream);
 else
