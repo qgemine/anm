@@ -1,6 +1,6 @@
 classdef ANM_System < matlab.mixin.Copyable
-    % ANM_System Simulate the system dynamics of the Active Network Management
-    %  benchmark available at  http://www.montefiore.ulg.ac.be/~anm/ .
+    % ANM_System Simulate the system dynamics of the Active Network
+    % Management benchmark available at http://www.montefiore.ulg.ac.be/~anm/ .
     % It takes into account the control actions provided by the user and
     % computes the reward associated to every transition.
 

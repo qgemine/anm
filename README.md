@@ -19,7 +19,7 @@ The implementation and interface of the test instance are both contained in the 
 
     inst = ANM_System();
 
-Documentation for this class is available within Matlab&reg; by typing `doc ANM_System`. In addition, we present here some use cases that illustrate how to use the interface.
+Documentation for this class is available within Matlab&reg; by typing `doc ANM_System` (see PDF version ![here](http://www.montefiore.ulg.ac.be/~anm/anm_system_doc.pdf)). In addition, we present here some use cases that illustrate how to use the interface.
 
 ### Parameters of the test instance
 
