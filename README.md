@@ -10,7 +10,7 @@ The generic formulation of the ANM problem is motivated and described in [this p
 
 ## Installation
 
-This code runs on Matlab&reg; and requires the Statistics and Optimization toolboxes as well as the third-party [YALMIP toolbox](http://users.isy.liu.se/johanl/yalmip/) (free and easy to install). In order to run the illustrative control policy, you will also need to intall Gurobi&reg; (free academic license).
+This code runs on Matlab&reg; and requires the Statistics and Optimization toolboxes as well as the third-party [YALMIP toolbox](http://users.isy.liu.se/johanl/yalmip/) (free and easy to install). In order to run the illustrative control policy (optional), you will also need to intall Gurobi&reg; (free academic license).
 
 
 ## Manual
@@ -23,7 +23,7 @@ Documentation for this class is available within Matlab&reg; by typing `doc ANM_
 
 ### Parameters of the test instance
 
-The class has several public properties that describe the characteristics of the test instance. You get obtain a list of them by using the command `properties ANM_System`. Among other information, you can find the number of buses in the distribution network, its admittance matrix, the number of distributed generators and loads, the voltage and current limits, the duration of modulation signals, ...
+The class has several public properties that describe the characteristics of the test instance. You can get a list of them by using the command `properties ANM_System`. Among other information, you can find the number of buses in the distribution network, its admittance matrix, the number of distributed generators and loads, the voltage and current limits, the duration of modulation signals, ...
 
     >> inst = ANM_System();
     >> display(['This test system relies on a ' num2str(inst.N_buses) '-bus network,' ...
@@ -88,7 +88,34 @@ Before calling the method `transition()`, it is possible to provide curtailment 
 
 ### Activation of flexible loads
 
-TODO
+Activation instructions of flexible loads can be provided for the next time period by calling the method `setFlexAct()`. It accepts a single argument that is a column vector of 0's and 1's and that has as many components as the number of flexible loads. The i-th component indicates if modulation service of the i-th flexible load must be activated (1) or not (0).
+
+    >> inst = ANM_System();
+    >> for i = 1:96
+    >>     % Random activations.
+    >>     activations = round(rand(size(inst.Tflex))/1.75);
+    >>     % Avoid activation of already active loads.
+    >>     activations = activations.*(inst.getFlexState()==0);
+    >>     % Send activation instructions for next time step.
+    >>     inst.setFlexAct(activations);
+    >>     % Generate next time step.
+    >>     inst.transition();
+    >>     fprintf('%d flexible services are running for a cumulated modulation of %2.2f MW\n', sum(inst.getFlexState()>0), sum(inst.getFlexOffsets()));
+    >> end
+    6 flexible services are running for a cumulated modulation of -0.12 MW
+    11 flexible services are running for a cumulated modulation of -0.44 MW
+    17 flexible services are running for a cumulated modulation of -0.41 MW
+    21 flexible services are running for a cumulated modulation of -0.17 MW
+    26 flexible services are running for a cumulated modulation of 0.08 MW
+    30 flexible services are running for a cumulated modulation of 0.28 MW
+    35 flexible services are running for a cumulated modulation of 0.47 MW
+    38 flexible services are running for a cumulated modulation of 0.61 MW
+    38 flexible services are running for a cumulated modulation of 0.60 MW
+    41 flexible services are running for a cumulated modulation of 0.56 MW
+    43 flexible services are running for a cumulated modulation of 0.32 MW
+    40 flexible services are running for a cumulated modulation of 0.19 MW
+    39 flexible services are running for a cumulated modulation of -0.08 MW
+    ...
 
 ### Using a control policy
 

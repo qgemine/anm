@@ -52,7 +52,7 @@ for t=1:T
     % Get control actions using the policy.
     [actions, model] = policy(syst, model);
     syst.setCurtailment(max(actions{1},0));
-    syst.setFlexAct(round(actions{2}).*(syst.getFlexState()==0));
+    syst.setFlexAct(round(actions{2}));
     % Trigger a transition of the system.
     syst.transition();
     % Get electrical quantities for the new state and last reward.

@@ -91,7 +91,7 @@ function [actions, model] = example_policy(sys, model)
         end
 
         % Build the optimization model, which produces and solves a mathematical
-        % program as a function of some parameters (i.e. forecast of power
+        % program as a function of some parameters (e.g. forecast of power
         % injections).
         model = optimizer(constraints, cost, sdpsettings('verbose', 0, 'solver', 'gurobi'), [P_forecast(2:end); {P_modulation}; {on}; {curt_cost}; {prob_scens}] , [P_max(1); {act}]);
     end
@@ -107,13 +107,11 @@ function [actions, model] = example_policy(sys, model)
     display('Sampling trajectories of the system...');
     % Generate trajectories
     for i = 1:N_samples
-        %part = zeros(1, T*N_dev);
         inst = obj.copy();
         for t=1:T
             inst.transition();
             timeseries(i, ((t-1)*N_dev+1):(t*N_dev)) = [inst.getPLoads()' inst.getPGens()'];
         end
-        %timeseries(i,:) = part;
     end
     
     %% Aggregate scenarios into clusters.
@@ -183,9 +181,10 @@ function [actions, model] = example_policy(sys, model)
     % Parameters of curtailment prices.
     curt_cost = obj.getCurtPrice(mod(obj.getQuarter():(obj.getQuarter()+T-1),96)+1)/4;
     
-    % Solve the mathematical program using current parameter and get
+    % Solve the mathematical program using current parameters and get
     % control actions.
     display('Solving mathematical program...');
     actions = model{[P_forecast; {P_modulation(:,1:T)}; {obj.getFlexState() > 0}; {curt_cost}; {probs}]};
+    actions{2} = actions{2}.*(obj.getFlexState()==0);
     
 end
