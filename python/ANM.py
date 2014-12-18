@@ -169,7 +169,7 @@ class Simulator:
         if sum(less(curt_gen, 0)) > 0:
             raise ValueError("Error: a production level upper limit cannot be negative.")
         
-        if asarray(curt_gen).shape != asarray(self.curt_state.shape:
+        if asarray(curt_gen).shape != asarray(self.curt_state).shape:
             raise ValueError("Error: 'curt_gen' must be a vector (1D) of length 'N_gens'.")
         
         # Update curtailment instructions
