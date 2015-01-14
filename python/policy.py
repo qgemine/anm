@@ -1,4 +1,6 @@
 from __future__ import division
+import time
+import sys
 from numpy import *
 from scipy import *
 from sklearn.cluster import *
@@ -171,8 +173,6 @@ def policy(param, simu):
 	Ploads = Ps[:,0:simu.N_loads:]
 	Pgens = Ps[:,simu.N_loads::]
 
-	print(str(Ploads.sum(1)+Pgens.sum(1)))
-
 	# Get the mathematical program instanciated with paramters' value and foreseen power injections
 	model = get_model(simu, T, Pgens, Ploads, simu.dev2bus, A_hyperplane, b_hyperplane)
 	instance = model.create()
@@ -197,3 +197,26 @@ def policy(param, simu):
 
 # Helper for the user to know the expected size of the policy's parameter.
 policy.param_size = Simulator.N_buses
+
+def evaluate(param, N_runs, L_run, discount):
+	# Array of weighted instantaneous rewards
+	r = zeros((N_runs,L_run))
+
+	# Compute the N_runs * L_run rewards
+	for n in range(0, N_runs):
+		simu = Simulator()
+		for t in range(0, L_run):
+			sys.stdout.write("\r%2.2f%% completed..." % (100*(n*L_run+t)/(N_runs*L_run)))
+			sys.stdout.flush()
+			action = policy(param, simu)
+        	simu.setCurtailment(action.curt)
+        	simu.setFlexAct(action.flex)
+        	simu.transition()
+        	r[n,t] = (discount**t) * simu.getReward()
+
+	sys.stdout.write("\r100% completed...\r\n")
+	sys.stdout.flush()
+
+    # return the mean and standard dev. of the policy's return
+	return (r.sum(1).mean(),r.sum(1).std())
+
