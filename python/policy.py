@@ -29,19 +29,19 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 			Pflex_init[(j+1-sim.Tflex[i]+flexState,i+1)] = asscalar(signal[j])
 
 	### Periods within the optimization horizon
-	model.periods = RangeSet(1,T)
+	model.periods = RangeSet(1,T,name="periods")
 
 	### Generators
-	model.generators = RangeSet(1, sim.N_gens)
+	model.generators = RangeSet(1, sim.N_gens,name="generators")
 	# Active power injections of generators
-	model.Pgens = Param(model.periods, model.generators, within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Pgens.shape[0]) for j in range(Pgens.shape[1])), (asscalar(x) for x in Pgens.reshape(Pgens.size)))))
+	model.Pgens = Param(model.periods, model.generators, name="Pgen", within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Pgens.shape[0]) for j in range(Pgens.shape[1])), (asscalar(x) for x in Pgens.reshape(Pgens.size)))))
 	# Curtailment cost
-	model.CurtCost = Param(model.periods, within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice((sim.getQuarter()+i % 96)+1)) for i in range(T)))))
+	model.CurtCost = Param(model.periods, name="CurtCost", within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice((sim.getQuarter()+i % 96)+1)) for i in range(T)))))
 
 	### Loads
-	model.loads = RangeSet(1, sim.N_loads)
+	model.loads = RangeSet(1, sim.N_loads, name="loads")
 	# Active power injections of loads
-	model.Ploads = Param(model.periods, model.loads, within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Ploads.shape[0]) for j in range(Ploads.shape[1])), (asscalar(x) for x in Ploads.reshape(Ploads.size)))))
+	model.Ploads = Param(model.periods, model.loads, name="Pload", within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Ploads.shape[0]) for j in range(Ploads.shape[1])), (asscalar(x) for x in Ploads.reshape(Ploads.size)))))
 	# Cost of flexibility services
 	model.FlexCost = Param(model.loads, within=NonNegativeReals, initialize=dict(zip(range(1,sim.N_loads+1),(asscalar(sim.getFlexCost(i)) for i in range(sim.N_loads)))))
 	# Duration of flexibility services.
@@ -141,42 +141,57 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 
 	return model
 
-def policy(A_hyperplane, b_hyperplane, simu):
+def policy(param, simu):
+	# Policy's fixed parameters.
 	T = 15
 	N_scens = 1
 	N_samples = 50
-	N_dev = simu.N_gens+simu.N_loads
+	N_dev = simu.N_gens + simu.N_loads
 
+	# Check the size of the parameter passed as argument.
+	if asarray(param).shape != (simu.N_buses,):
+		raise "Policy's paramater must be a vector of size " + str(simu.N_buses)
+
+	# Slip the parameter into A and b, as in "A*x + b <= 0".
+	A_hyperplane = asarray(param)[0:-1]
+	b_hyperplane = asscalar(asarray(param)[-1])
+
+	# Generate 'N_samples' 'T'-long trajectories of the active power injection of the devices.
 	timeseries = zeros((N_samples, T*N_dev))
-
 	for k in range(0,N_samples):
 		inst = cpy.copy(simu)
 		for t in range(0,T):
 			inst.transition()
-			timeseries[k, (t*N_dev):((t+1)*N_dev)] = concatenate((inst.getPLoads(), inst.getPGens()))
+			timeseries[k, (t*N_dev):((t+1)*N_dev)] = concatenate((inst.getPGens(),inst.getPLoads()))
 
+	# Cluster the timeseries into 'N_scens' scenarios
 	km = KMeans(n_clusters=N_scens)
 	km.fit(timeseries)
 	Ps = km.cluster_centers_.reshape((T,N_dev))
-
 	Pgens = Ps[:,0:simu.N_gens]
 	Ploads = Ps[:,simu.N_gens::]
 
+	# Get the mathematical program instanciated with paramters' value and foreseen power injections
 	model = get_model(simu, T, Pgens, Ploads, simu.dev2bus, A_hyperplane, b_hyperplane)
-	
 	instance = model.create()
-	results = opt.solve(instance)
-	instance.load(results)
 
+	# Solve the mathematical program and check the termination condition of the solver.
+	results = opt.solve(instance)
 	if str(results.solver.termination_condition) != "optimal":
 		raise Exception("Unexpected solver status: " + str(results.solver.termination_condition))
 
+	# Load the results from the solver
+	instance.load(results)
+
+	# Gather first stage's action variables into 'action.curt' and 'action.flex'
 	action.curt = ones(simu.N_gens)
 	for i in range(0,simu.N_gens):
 		action.curt[i] = instance.Pmax[1,i+1].value
-
 	action.flex = ones(simu.N_loads, dtype=integer)
 	for i in range(0,simu.N_loads):
 		action.flex[i] = instance.ActFlex[1,i+1].value
 
 	return action
+
+# Helper for the user to know the expected size of the policy's parameter.
+policy.param_size = Simulator.N_buses
