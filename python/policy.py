@@ -36,7 +36,7 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 	# Active power injections of generators
 	model.Pgens = Param(model.periods, model.generators, name="Pgen", within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Pgens.shape[0]) for j in range(Pgens.shape[1])), (asscalar(x) for x in Pgens.reshape(Pgens.size)))))
 	# Curtailment cost
-	model.CurtCost = Param(model.periods, name="CurtCost", within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice((sim.getQuarter()+i % 96)+1))/4.0 for i in range(T)))))
+	model.CurtCost = Param(model.periods, name="CurtCost", within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice(((sim.getQuarter()+i) % 96)+1))/4.0 for i in range(T)))))
 
 	### Loads
 	model.loads = RangeSet(1, sim.N_loads, name="loads")
@@ -93,7 +93,7 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 
 	# Dertermine the power injected in buses
 	def inj_in_buses(model, t, bus):
-		return sum(asscalar(dev2bus[bus-1,sim.N_loads+gen-1])*(model.Pgens[t,gen]-model.DeltaProd[t,gen]) for gen in model.generators) \
+		return sum(asscalar(dev2bus[bus-1,sim.N_loads+gen-1])*(model.Pmax[t,gen]) for gen in model.generators) \
 			   + sum(asscalar(dev2bus[bus-1,load-1])*(model.Ploads[t,load]+model.DeltaCons[t,load]) for load in model.loads) \
 			 == model.Pbuses[t,bus]
 	model.Mapping = Constraint(model.periods, model.buses, rule=inj_in_buses)
