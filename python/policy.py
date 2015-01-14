@@ -36,7 +36,7 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 	# Active power injections of generators
 	model.Pgens = Param(model.periods, model.generators, name="Pgen", within=Reals, initialize=dict(zip(((i+1,j+1) for i in range(Pgens.shape[0]) for j in range(Pgens.shape[1])), (asscalar(x) for x in Pgens.reshape(Pgens.size)))))
 	# Curtailment cost
-	model.CurtCost = Param(model.periods, name="CurtCost", within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice((sim.getQuarter()+i % 96)+1)) for i in range(T)))))
+	model.CurtCost = Param(model.periods, name="CurtCost", within=Reals, initialize=dict(zip(range(1,T+1),(asscalar(sim.getCurtPrice((sim.getQuarter()+i % 96)+1))/4.0 for i in range(T)))))
 
 	### Loads
 	model.loads = RangeSet(1, sim.N_loads, name="loads")
@@ -93,8 +93,8 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 
 	# Dertermine the power injected in buses
 	def inj_in_buses(model, t, bus):
-		return sum(asscalar(dev2bus[bus-1,gen-1])*(model.Pgens[t,gen]+model.DeltaProd[t,gen]) for gen in model.generators) \
-			   + sum(asscalar(dev2bus[bus-1,load-1+sim.N_gens])*(model.Ploads[t,load]+model.DeltaCons[t,load]) for load in model.loads) \
+		return sum(asscalar(dev2bus[bus-1,sim.N_loads+gen-1])*(model.Pgens[t,gen]-model.DeltaProd[t,gen]) for gen in model.generators) \
+			   + sum(asscalar(dev2bus[bus-1,load-1])*(model.Ploads[t,load]+model.DeltaCons[t,load]) for load in model.loads) \
 			 == model.Pbuses[t,bus]
 	model.Mapping = Constraint(model.periods, model.buses, rule=inj_in_buses)
 
@@ -162,14 +162,16 @@ def policy(param, simu):
 		inst = cpy.copy(simu)
 		for t in range(0,T):
 			inst.transition()
-			timeseries[k, (t*N_dev):((t+1)*N_dev)] = concatenate((inst.getPGens(),inst.getPLoads()))
+			timeseries[k, (t*N_dev):((t+1)*N_dev)] = concatenate((inst.getPLoads(),inst.getPGens()))
 
 	# Cluster the timeseries into 'N_scens' scenarios
 	km = KMeans(n_clusters=N_scens)
 	km.fit(timeseries)
 	Ps = km.cluster_centers_.reshape((T,N_dev))
-	Pgens = Ps[:,0:simu.N_gens]
-	Ploads = Ps[:,simu.N_gens::]
+	Ploads = Ps[:,0:simu.N_loads:]
+	Pgens = Ps[:,simu.N_loads::]
+
+	print(str(Ploads.sum(1)+Pgens.sum(1)))
 
 	# Get the mathematical program instanciated with paramters' value and foreseen power injections
 	model = get_model(simu, T, Pgens, Ploads, simu.dev2bus, A_hyperplane, b_hyperplane)

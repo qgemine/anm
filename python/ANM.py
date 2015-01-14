@@ -73,7 +73,7 @@ class Simulator:
         #   C = OBJ.GETCURTPRICE(QUARTER) returns in C the cost of
         #   curtailement per MWh for QUARTER that belongs to {1,...,96}.
         
-        return self.curt_price[ceil(quarter/4)-1]
+        return self.curt_price[ceil((quarter-1)/4)]
 
     def getCurtState(self):
         # GETCURTSTATE Get the last curtailment instructions, i.e. the
