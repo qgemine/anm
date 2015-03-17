@@ -1,6 +1,8 @@
 from __future__ import division
 import time
 import sys
+import operator
+import functools
 from numpy import *
 from scipy import *
 from sklearn.cluster import *
@@ -8,6 +10,7 @@ import copy as cpy
 import coopr.environ
 from coopr.pyomo import *
 from coopr.opt import SolverFactory
+import collections
 
 from ANM import *
 
@@ -143,60 +146,102 @@ def get_model(sim, T, Pgens, Ploads, dev2bus, A_hyperplane, b_hyperplane):
 
 	return model
 
+def Tree():
+    return collections.defaultdict(Tree)
+
+# Data structure used to populate list of nodes of a scenario tree
+class Vividict(dict):
+    def __missing__(self, key):
+        value = self[key] = type(self)()
+        return value
+# Dict-like data structre using "." to access keys.
+def bunch(**kw):
+    return type('bunch',(), kw)
+
+def enum_ancestors(parent, branching, ancestors):
+	if branching == []:
+		return
+	depth = parent[0]+1
+	prior = ancestors[depth].keys()
+	offset = 0
+	if prior:
+		offset = max(prior)
+	for child in range(1,branching[0]+1):
+		ancestors[depth][child+offset] = parent
+		enum_ancestors((depth,child+offset), branching[1::], ancestors)
+		
+
 def policy(param, simu):
-	# Policy's fixed parameters.
-	T = 15
-	N_scens = 1
-	N_samples = 50
+	# Number of devices
 	N_dev = simu.N_gens + simu.N_loads
+	# Shape and depth of the scenario tree (excluding root node)
 
 	# Check the size of the parameter passed as argument.
 	if asarray(param).shape != (simu.N_buses,):
 		raise "Policy's paramater must be a vector of size " + str(simu.N_buses)
 
-	# Slip the parameter into A and b, as in "A*x + b <= 0".
+	# Split the parameter into A and b, as in "A*x + b <= 0".
 	A_hyperplane = asarray(param)[0:-1]
 	b_hyperplane = asscalar(asarray(param)[-1])
 
 	# Generate 'N_samples' 'T'-long trajectories of the active power injection of the devices.
-	timeseries = zeros((N_samples, T*N_dev))
-	for k in range(0,N_samples):
+	timeseries = zeros((policy.N_samples, policy.T*N_dev))
+	for k in range(0,policy.N_samples):
 		inst = cpy.copy(simu)
-		for t in range(0,T):
+		for t in range(0,policy.T):
 			inst.transition()
 			timeseries[k, (t*N_dev):((t+1)*N_dev)] = concatenate((inst.getPLoads(),inst.getPGens()))
+	return timeseries
+	#hc = AgglomerativeClustering(n_clusters=policy.branching[0],\
+	#							 affinity='euclidean', linkage='ward')#functools.reduce(operator.mul,policy.branching, 1)\
+	#hc.fit(timeseries)
+
+	#return hc
 
 	# Cluster the timeseries into 'N_scens' scenarios
-	km = KMeans(n_clusters=N_scens)
-	km.fit(timeseries)
-	Ps = km.cluster_centers_.reshape((T,N_dev))
-	Ploads = Ps[:,0:simu.N_loads:]
-	Pgens = Ps[:,simu.N_loads::]
+	#km = KMeans(n_clusters=policy.N_scens)
+	#km.fit(timeseries)
+	#Ps = km.cluster_centers_.reshape((policy.T,N_dev))
+	#Ploads = Ps[:,0:simu.N_loads:]
+	#Pgens = Ps[:,simu.N_loads::]
 
 	# Get the mathematical program instanciated with paramters' value and foreseen power injections
-	model = get_model(simu, T, Pgens, Ploads, simu.dev2bus, A_hyperplane, b_hyperplane)
-	instance = model.create()
+	# model = get_model(simu, policy.T, Pgens, Ploads, simu.dev2bus, A_hyperplane, b_hyperplane)
+	# instance = model.create()
 
-	# Solve the mathematical program and check the termination condition of the solver.
-	results = opt.solve(instance)
-	if str(results.solver.termination_condition) != "optimal":
-		raise Exception("Unexpected solver status: " + str(results.solver.termination_condition))
+	# # Solve the mathematical program and check the termination condition of the solver.
+	# results = opt.solve(instance)
+	# if str(results.solver.termination_condition) != "optimal":
+	# 	raise Exception("Unexpected solver status: " + str(results.solver.termination_condition))
 
-	# Load the results from the solver
-	instance.load(results)
+	# # Load the results from the solver
+	# instance.load(results)
 
-	# Gather first stage's action variables into 'action.curt' and 'action.flex'
-	action.curt = ones(simu.N_gens)
-	for i in range(0,simu.N_gens):
-		action.curt[i] = instance.Pmax[1,i+1].value
-	action.flex = ones(simu.N_loads, dtype=integer)
-	for i in range(0,simu.N_loads):
-		action.flex[i] = instance.ActFlex[1,i+1].value
+	# # Gather first stage's action variables into 'action.curt' and 'action.flex'
+	# actions = bunch(curt=[],flex=[])
+	# actions.curt = ones(simu.N_gens)
+	# for i in range(0,simu.N_gens):
+	# 	actions.curt[i] = instance.Pmax[1,i+1].value
+	# actions.flex = ones(simu.N_loads, dtype=integer)
+	# for i in range(0,simu.N_loads):
+	# 	actions.flex[i] = instance.ActFlex[1,i+1].value
 
-	return action
+	# return actions
 
 # Helper for the user to know the expected size of the policy's parameter.
 policy.param_size = Simulator.N_buses
+# Policy's static parameters
+policy.N_scens = 1
+policy.N_samples = 100
+# Shape and depth of the scenario tree (excluding root node)
+policy.branching = [3,2] + [1] * 13
+policy.T = len(policy.branching)
+# Mapping of nodes to their ancestor
+_raw_ancs = Vividict()
+enum_ancestors((0,1),policy.branching,_raw_ancs)
+policy.ancestors = dict([((i,j),_raw_ancs[i][j]) \
+				 	   for i in _raw_ancs.keys() \
+				 	   for j in _raw_ancs[i].keys()])
 
 def evaluate(param, N_runs, L_run, discount):
 	# Array of weighted instantaneous rewards
