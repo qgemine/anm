@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 from numpy import *
+from numpy.random import RandomState
 from scipy import *
 from scipy import optimize
 from scipy import sparse
 import theano
-from theano.tensor.shared_randomstreams import RandomStreams
+from case75 import *
 
 class Simulator:
     # ANM.Simulator Simulate the system dynamics of the Active Network
@@ -14,41 +15,169 @@ class Simulator:
     # computes the reward associated to every transition.
 
     # Set system's parameters.
-    N_buses = 77
-    N_buses = 77
-    N_gens = 59
-    N_loads = 53
-    Y_rows = array([0, 1, 0, 1, 2, 5, 8, 11, 16, 27, 38, 52, 1, 2, 3, 2, 3, 4, 3, 4, 1, 5, 6, 5, 6, 7, 6, 7, 1, 8, 9, 8, 9, 10, 9, 10, 1, 11, 12, 11, 12, 13, 14, 12, 13, 15, 12, 14, 13, 15, 1, 16, 17, 16, 17, 18, 23, 17, 18, 19, 18, 19, 20, 24, 19, 20, 21, 25, 20, 21, 22, 21, 22, 26, 17, 23, 19, 24, 20, 25, 22, 26, 1, 27, 28, 27, 28, 29, 34, 28, 29, 30, 29, 30, 31, 35, 30, 31, 32, 36, 31, 32, 33, 32, 33, 37, 28, 34, 30, 35, 31, 36, 33, 37, 1, 38, 39, 38, 39, 40, 47, 39, 40, 41, 40, 41, 42, 48, 41, 42, 43, 49, 42, 43, 44, 43, 44, 45, 50, 44, 45, 46, 45, 46, 51, 39, 47, 41, 48, 42, 49, 44, 50, 46, 51, 1, 52, 53, 52, 53, 54, 68, 53, 54, 55, 54, 55, 56, 69, 55, 56, 57, 70, 56, 57, 58, 57, 58, 59, 71, 58, 59, 60, 59, 60, 61, 72, 60, 61, 62, 61, 62, 63, 73, 62, 63, 64, 74, 63, 64, 65, 64, 65, 66, 75, 65, 66, 67, 66, 67, 76, 53, 68, 55, 69, 56, 70, 58, 71, 60, 72, 62, 73, 63, 74, 65, 75, 67, 76])
-    Y_cols = array([0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20, 21, 21, 21, 22, 22, 22, 23, 23, 24, 24, 25, 25, 26, 26, 27, 27, 27, 28, 28, 28, 28, 29, 29, 29, 30, 30, 30, 30, 31, 31, 31, 31, 32, 32, 32, 33, 33, 33, 34, 34, 35, 35, 36, 36, 37, 37, 38, 38, 38, 39, 39, 39, 39, 40, 40, 40, 41, 41, 41, 41, 42, 42, 42, 42, 43, 43, 43, 44, 44, 44, 44, 45, 45, 45, 46, 46, 46, 47, 47, 48, 48, 49, 49, 50, 50, 51, 51, 52, 52, 52, 53, 53, 53, 53, 54, 54, 54, 55, 55, 55, 55, 56, 56, 56, 56, 57, 57, 57, 58, 58, 58, 58, 59, 59, 59, 60, 60, 60, 60, 61, 61, 61, 62, 62, 62, 62, 63, 63, 63, 63, 64, 64, 64, 65, 65, 65, 65, 66, 66, 66, 67, 67, 67, 68, 68, 69, 69, 70, 70, 71, 71, 72, 72, 73, 73, 74, 74, 75, 75, 76, 76])
-    Y_data = array([ 0.00000000 -238.0952j , 0.00000000 +238.0952j , 0.00000000 +238.0952j , 4770.20667857-3544.87206071j, -386.82149649 +200.43351339j, -386.82149649 +200.43351339j, -386.82149649 +200.43351339j, -296.39587078 +153.54643231j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, -684.67324958 +527.13120415j, -944.10742097 +726.89172863j, -386.82149649 +200.43351339j, 773.64299299 -400.86702679j, -386.82149649 +200.43351339j, -386.82149649 +200.43351339j, 1878.65942169 -606.86371737j, -1491.83792520 +406.43020398j, -1491.83792520 +406.43020398j, 1491.83792520 -406.43020398j, -386.82149649 +200.43351339j, 773.64299299 -400.86702679j, -386.82149649 +200.43351339j, -386.82149649 +200.43351339j, 1878.65942169 -606.86371737j, -1491.83792520 +406.43020398j, -1491.83792520 +406.43020398j, 1491.83792520 -406.43020398j, -386.82149649 +200.43351339j, 773.64299299 -400.86702679j, -386.82149649 +200.43351339j, -386.82149649 +200.43351339j, 1878.65942169 -606.86371737j, -1491.83792520 +406.43020398j, -1491.83792520 +406.43020398j, 1491.83792520 -406.43020398j, -296.39587078 +153.54643231j, 592.79174156 -307.09286461j, -296.39587078 +153.54643231j, -296.39587078 +153.54643231j, 1997.54501985 -688.47384515j, -296.39587078 +153.54643231j, -1404.75327829 +381.38098053j, -296.39587078 +153.54643231j, 1701.14914907 -534.92741284j, -1404.75327829 +381.38098053j, -1404.75327829 +381.38098053j, 1404.75327829 -381.38098053j, -1404.75327829 +381.38098053j, 1404.75327829 -381.38098053j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 2560.88270402-1115.06820536j, -1718.59988014 +466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 3403.16552789-1764.02168309j, -842.28282387 +648.95347772j, -1718.59988014 +466.11472764j, -842.28282387 +648.95347772j, 1684.56564775-1297.90695545j, -842.28282387 +648.95347772j, -842.28282387 +648.95347772j, 2560.88270402-1115.06820536j, -1718.59988014 +466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -1718.59988014 +466.11472764j, 1718.59988014 -466.11472764j, -684.67324958 +527.13120415j, 1369.34649917-1054.2624083j , -684.67324958 +527.13120415j, -684.67324958 +527.13120415j, 3000.46748778-1497.0360567j , -684.67324958 +527.13120415j, -1631.12098861 +442.7736484j , -684.67324958 +527.13120415j, 1369.34649917-1054.2624083j , -684.67324958 +527.13120415j, -684.67324958 +527.13120415j, 3000.46748778-1497.0360567j , -684.67324958 +527.13120415j, -1631.12098861 +442.7736484j , -684.67324958 +527.13120415j, 3000.46748778-1497.0360567j , -684.67324958 +527.13120415j, -1631.12098861 +442.7736484j , -684.67324958 +527.13120415j, 1369.34649917-1054.2624083j , -684.67324958 +527.13120415j, -684.67324958 +527.13120415j, 3000.46748778-1497.0360567j , -684.67324958 +527.13120415j, -1631.12098861 +442.7736484j , -684.67324958 +527.13120415j, 1369.34649917-1054.2624083j , -684.67324958 +527.13120415j, -684.67324958 +527.13120415j, 2315.79423820 -969.90485255j, -1631.12098861 +442.7736484j , -1631.12098861 +442.7736484j , 1631.12098861 -442.7736484j , -1631.12098861 +442.7736484j , 1631.12098861 -442.7736484j , -1631.12098861 +442.7736484j , 1631.12098861 -442.7736484j , -1631.12098861 +442.7736484j , 1631.12098861 -442.7736484j , -1631.12098861 +442.7736484j , 1631.12098861 -442.7736484j , -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 3165.71661624-1800.7592478j , -944.10742097 +726.89172863j, -1277.50177431 +346.97579055j, -944.10742097 +726.89172863j, 1888.21484194-1453.78345725j, -944.10742097 +726.89172863j, -944.10742097 +726.89172863j, 2221.60919528-1073.86751918j, -1277.50177431 +346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j, -1277.50177431 +346.97579055j, 1277.50177431 -346.97579055j])
-    Y_bus =  sparse.coo_matrix((Y_data, (Y_rows,Y_cols)), shape=(N_buses,N_buses)).toarray()
-    d2b_rows = array([1, 3, 4, 6, 7, 9, 10, 11, 13, 14, 15, 17, 20, 22, 23, 24, 25, 26, 28, 31, 33, 34, 35, 36, 37, 39, 42, 44, 46, 47, 48, 49, 50, 51, 53, 54, 56, 57, 58, 60, 61, 63, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 75, 1, 3, 4, 6, 7, 9, 10, 11, 13, 14, 15, 17, 20, 22, 23, 24, 25, 26, 28, 31, 33, 34, 35, 36, 37, 39, 42, 44, 46, 47, 48, 49, 50, 51, 53, 54, 56, 57, 58, 60, 61, 63, 64, 65, 67, 68, 69, 70, 71, 72, 73, 74, 75, 2, 5, 8, 16, 27, 52])
-    d2b_cols = array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111])
-    d2b_data = array([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-    dev2bus = sparse.coo_matrix((d2b_data, (d2b_rows, d2b_cols)), shape=(76, 112)).toarray()
-    qp = tan(arccos(0.98))*ones(112)
-    g_ij = array([0,386.821496494312,386.821496494312,1491.83792519772,386.821496494312,386.821496494312,1491.83792519772,386.821496494312,386.821496494312,1491.83792519772,296.395870782097,296.395870782097,296.395870782097,1404.75327828734,1404.75327828734,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,1718.59988014193,1718.59988014193,1718.59988014193,1718.59988014193,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,842.282823874705,1718.59988014193,1718.59988014193,1718.59988014193,1718.59988014193,684.673249584679,684.673249584679,684.673249584679,684.673249584679,684.673249584679,684.673249584679,684.673249584679,684.673249584679,684.673249584679,1631.12098861358,1631.12098861358,1631.12098861358,1631.12098861358,1631.12098861358,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,944.107420968271,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802,1277.50177430802])
-    b_ij = array([-238.0952,-200.433513394501,-200.433513394501,-406.430203980147,-200.433513394501,-200.433513394501,-406.430203980147,-200.433513394501,-200.433513394501,-406.430203980147,-153.546432307417,-153.546432307417,-153.546432307417,-381.380980530501,-381.380980530501,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-466.114727639969,-466.114727639969,-466.114727639969,-466.114727639969,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-648.953477723598,-466.114727639969,-466.114727639969,-466.114727639969,-466.114727639969,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-527.131204151345,-442.773648397731,-442.773648397731,-442.773648397731,-442.773648397731,-442.773648397731,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-726.891728625195,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796,-346.975790552796])
-    links = array([[0,1],[1,2],[2,3],[3,4],[1,5],[5,6],[6,7],[1,8],[8,9],[9,10],[1,11],[11,12],[12,13],[12,14],[13,15],[1,16],[16,17],[17,18],[18,19],[19,20],[20,21],[21,22],[17,23],[19,24],[20,25],[22,26],[1,27],[27,28],[28,29],[29,30],[30,31],[31,32],[32,33],[28,34],[30,35],[31,36],[33,37],[1,38],[38,39],[39,40],[40,41],[41,42],[42,43],[43,44],[44,45],[45,46],[39,47],[41,48],[42,49],[44,50],[46,51],[1,52],[52,53],[53,54],[54,55],[55,56],[56,57],[57,58],[58,59],[59,60],[60,61],[61,62],[62,63],[63,64],[64,65],[65,66],[66,67],[53,68],[55,69],[56,70],[58,71],[60,72],[62,73],[63,74],[65,75],[67,76]])
-    dPnom = 5*array([-0.02616,0.03384,-0.02616,0.03384,-0.02616,0.03384,-0.02624,0.02624,-0.00664,0.0332,-0.0284,0.0284,-0.0284,0.04256,-0.04256,0.04264,-0.04264,0.0284,-0.0284,0.0284,-0.04256,0.04256,-0.04264,0.04264,-0.02896,0.02904,-0.02904,0.02904,-0.04336,0.0436,-0.0436,0.0436,-0.0436,0.0228,-0.02296,0.02296,-0.02296,0.02296,-0.02296,0.02296,-0.02296,0.02296,-0.02296,0.02296,-0.0376,0.0148,-0.03784,0.01496,-0.03784,0.01496,-0.03784,0.01496,-0.03784])
-    Tflex = array([13,23,17,11,19,18,17,15,13,13,11,12,6,18,12,16,12,15,18,16,14,8,14,16,12,10,15,23,13,24,17,14,14,14,15,9,12,10,14,15,17,14,14,7,20,7,24,12,10,17,20,19,17], dtype=integer)
-    ratings = array([22.5,6.82,6.82,4.84,6.82,6.82,4.84,6.82,6.82,4.84,6.82,6.82,6.82,4.84,4.84,8.86,8.86,8.86,8.86,8.86,8.86,8.86,4.84,4.84,4.84,4.84,8.86,8.86,8.86,8.86,8.86,8.86,8.86,4.84,4.84,4.84,4.84,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,4.84,4.84,4.84,4.84,4.84,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,8.86,4.84,4.84,4.84,4.84,4.84,4.84,4.84,4.84,4.84])
-    V_slack = 1.015
-    Vmin = 0.95*ones(N_buses-1)
-    Vmax = 1.05*ones(N_buses-1)
-    V_init = array([V_slack] + [1]*(N_buses-1) + [0]*N_buses)
-    curt_price = array([44.6173227472565,37.5933152653731,35.486858835712,30.813577481462,29.7982908484623,34.0830165585145,41.1455693600725,47.9863431328419,52.7878848863657,54.935686142715,56.2104514377951,56.5735353275524,54.2256495551522,50.721523721694,47.4582530137651,45.7213834384578,46.8899775610899,51.958446932519,58.7142978138175,59.8841691269956,53.82313410273,51.7470364162305,50.6788170666746,49.2207084749555])
     ir_to_pv = array([159.4125, 206.2125, 159.4125, 206.2125, 159.4125, 206.2125, 159.9, 159.9, 40.4625, 202.3125, 173.0625, 173.0625, 173.0625, 259.35, 259.35, 259.8375, 259.8375, 173.0625, 173.0625, 173.0625, 259.35, 259.35, 259.8375, 259.8375, 176.475, 176.9625, 176.9625, 176.9625, 264.225, 265.6875, 265.6875, 265.6875, 265.6875, 138.9375, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 139.9125, 229.125, 90.1875, 230.5875, 91.1625, 230.5875, 91.1625, 230.5875, 91.1625, 230.5875])
 
-    def __init__(self):
+    def __init__(self, rng=None):
         # __init__ Initialize the data members of the class and 
         # generate the initial state of the system.
 
+        # Load the test case
+        case = case75()
+        buses = case["bus"]
+        branches = case["branch"]
+        devices = case["gen"]
+        self.baseMVA = case["baseMVA"]
+        # Dictionary of parameters that require a call to a user-defined function to update their value at each transition.
+        self.callables = dict()
+
+        # Number of buses of the network.
+        self.N_buses = buses.shape[0]
+        # Number of links in the network.
+        self.N_branches = branches.shape[0]
+        # 0-based indices of the loads and generators within the list of devices.
+        loads = (devices[:,1]<0.0).nonzero()[0].tolist()
+        gens = (devices[:,1]>0.0).nonzero()[0].tolist()
+        # Number of loads.
+        self.N_loads = len(loads)
+        # Number of generators.
+        self.N_gens = len(gens)
+        # Q-P ratio of loads and genetators.
+        self.qp = devices[loads+gens,2]/devices[loads+gens,1]
+        # Bounds of voltage magnitude at buses.
+        self.Vmin = asarray(buses[1::,12])
+        self.Vmax = asarray(buses[1::,11])
+
+        # The IDs of buses are edited to be an increasing list of integers (1,2,3,...,N_buses)
+        bus_idx = dict()
+        for i in range(self.N_buses):
+            bus_idx[int(buses[i,0])] = i+1
+            buses[i,0] = i+1
+
+        # Check the correctness of the slack bus specifications and get its voltage magnitude.
+        if buses[0,1] == 3:
+            PV_dev = [dev for dev in range(devices.shape[0]) if dev not in (loads+gens)]
+            if len(PV_dev) > 1:
+                raise NotImplementedError("A single PV device is supported at the moment (at the slack).")
+            if len(PV_dev) < 1:
+                raise ValueError("The test system does not have a PV device at the slack bus.")
+            PV_id = PV_dev[0]
+            if PV_id != 0:
+                raise ValueError("The PV device at the slack bus must be specified as the first device in the input file.")
+            if bus_idx[int(devices[PV_id,0])] != 1:
+                raise ValueError("The test system must have a single PV device, connected at the slack bus.")
+            self.V_slack = devices[PV_id,5]
+            if (self.V_slack < 0.5) or (self.V_slack > 1.5):
+                print "Warning: voltage magnitude ("+str(self.V_slack)+") at the slack bus does not seem coherent."
+        else:
+            raise ValueError("The slack bus of the test case must be specified as the first bus in the input file.")
+
+        # Build the mapping matrix M such that M_ij = 1 if device j is at bus i, and 0 otherwise.
+        # Bus indices are shifted by 2 to have a 0-based indexing and because the slack bus is not considered.
+        # Device indices are shifted by 1 because the PV-like device at the slack bus is not considered.
+        d2b_cols = []
+        d2b_rows = []
+        for load in loads:
+            d2b_cols += [load-1]
+            d2b_rows += [bus_idx[int(devices[load,0])]-2]
+        for gen in gens:
+            d2b_cols += [gen-1]
+            d2b_rows += [bus_idx[int(devices[gen,0])]-2]
+        d2b_data = array([1]*(self.N_loads+self.N_gens))
+        self.dev2bus = sparse.coo_matrix((d2b_data, (d2b_rows, d2b_cols)),
+                                              shape=(self.N_buses-1, self.N_loads+self.N_gens)).toarray()
+
+        # Update bus indices in branch specifications to match the new indexing (1,...,N_buses)
+        for i in range(branches.shape[0]):
+            branches[i,0] = bus_idx[branches[i,0]]
+            branches[i,1] = bus_idx[branches[i,1]]
+        # Build the nodal admittance matrix from the branch specifications.
+        self.Y_bus = zeros((self.N_buses,self.N_buses), dtype=complex)
+        self.g_ij = empty((self.N_branches,))
+        self.b_ij = empty((self.N_branches,))
+        self.ratings = empty((self.N_branches,))
+        self.links = []
+        for i in range(self.N_buses):
+            self.Y_bus[i,i] = (buses[i,4]+1.0*buses[i,5])/self.baseMVA
+        for i in range(self.N_branches):
+            k = int(branches[i,0]-1) # from bus, 0-based id
+            m = int(branches[i,1]-1) # to bus, 0-based id
+            r = branches[i,2]
+            x = branches[i,3]
+            b = branches[i,4]
+            tap = branches[i,8] if branches[i,8] > 0.0 else 1.0
+            shift = branches[i,9]
+            y_line = 1.0/(r+1.0j*x)
+            y_shunt = 0.5j*b
+            self.links += [[k,m]]
+            self.g_ij[i] = y_line.real
+            self.b_ij[i] = y_line.imag
+            self.ratings[i] = branches[i,5]
+            self.Y_bus[k,k] += (y_line + y_shunt) / (tap**2)
+            self.Y_bus[m,m] += (y_line + y_shunt)
+            self.Y_bus[k,m] = -y_line/tap * exp(-1.0j*shift)
+            self.Y_bus[m,k] = -y_line/tap * exp(1.0j*shift)
+        self.links = array(self.links)
+        # Initial value of reals and imaginary parts of voltages for power flow computations.
+        self.V_init = array([self.V_slack] + [1]*(self.N_buses-1) + [0]*self.N_buses)
+        # Set up theano variables and functions for power flow computations.
+        Vflat = theano.tensor.vector("Vflat")
+        V = Vflat[0:self.N_buses]+1j*Vflat[self.N_buses:]
+        Y = theano.tensor.zmatrix("Y")
+        P_inj = theano.tensor.vector("P")
+        Q_inj = theano.tensor.vector("Q")
+        S_inj = Y.conj().dot(V.conj())*V
+        self.pf_eqs = theano.function([Vflat,Y,P_inj,Q_inj], theano.tensor.concatenate(  (S_inj[1:].real-P_inj
+                                                                                ,S_inj[1:].imag-Q_inj
+                                                                                ,[V[0].real-self.V_slack]
+                                                                                ,[V[0].imag]) ))
+
+        # Load services of flexible loads from the input file.
+        self.flexSignals = []
+        self.flexT = []
+        self.flexPrice = []
+        self.flexIdInLoads = []
+        flexLoads = [flex[1::] for flex in case["flex"] if int(flex[0])==1]
+        for loadID, price, signal in flexLoads:
+            try:
+                id = (asarray(loads)==int(loadID)).nonzero()[0][0]
+            except IndexError:
+                raise ValueError("A flexible service is attached to a non-existing load.")
+            self.flexIdInLoads += [id]
+            self.flexSignals += [signal]
+            self.flexT += [len(signal)]
+            if callable(price):
+                self.callables[("flexPrice",len(self.flexPrice))] = price
+                self.flexPrice += [None]
+            else:
+                self.flexPrice += [price]
+        self.N_flex = len(self.flexIdInLoads)
+        self.flexT = asarray(self.flexT)
+
+        # Load curtailment services from input.
+        self.curtPrice = []
+        self.curtIdInGens = []
+        curtGens = [curt[1::] for curt in case["flex"] if int(curt[0])==2]
+        for genID, price in curtGens:
+            try:
+                id = (asarray(gens)==int(genID)).nonzero()[0][0]
+            except IndexError:
+                raise ValueError("A curtailment service is attached to a non-existing generator.")
+            self.curtIdInGens += [id]
+            if callable(price):
+                self.callables[("curtPrice",len(self.curtPrice))] = price
+                self.curtPrice += [None]
+            else:
+                self.curtPrice += [price]
+        self.N_curt = len(self.curtIdInGens)
+
+        # Initialize random generator.
+        self.rng = RandomState() if rng is None else rng
+
         # Initialize consumption of loads
-        self.Ploads = self.P_init()/1e6
+        self.Ploads = self.rng.normal(self.P_init_mean,self.P_init_std)/1.e6
 
         # Stochastic initialization of weather's state.
-        self.ws = max(4.8272+2.6395*random.normal(), 0)
+        self.ws = max(4.8272+2.6395*self.rng.normal(), 0)
         self.ir = 0
 
         # Deduce initial distributed generation from weather data
@@ -58,154 +187,204 @@ class Simulator:
         self.computed = False
 
         # Initialize state and action vectors.
-        self.flex_state = zeros(self.N_loads, dtype=integer)
-        self.dP_flex = zeros(self.N_loads)
-        self.curt_state = 1e2*ones(self.N_gens)
-        self.last_flex_act = zeros(self.N_loads, dtype=integer)
-        self.flex_act = zeros(self.N_loads, dtype=integer)
-        self.curt_insts = 1e2*ones(self.N_gens)
+        self.flex_state = zeros(self.N_flex, dtype=integer)
+        self.dP_flex = zeros(self.N_flex)
+        self.last_flex_act = zeros(self.N_flex, dtype=integer)
+        self.flex_act = zeros(self.N_flex, dtype=integer)
+        self.prod_limit = 1e2*ones(self.N_curt)
+        self.curt_insts = 1e2*ones(self.N_curt)
         self.q = 1
 
-    def getCurtPrice(self, quarter):
+    def getCurtPrice(self, gen, timesteps=0):
         # GETCURTPRICE Get the cost of curtailing generation per MWh 
-        # for the specified quarter of an hour the day.
-        #   C = GETCURTPRICE(OBJ, QUARTER) or
-        #   C = OBJ.GETCURTPRICE(QUARTER) returns in C the cost of
-        #   curtailement per MWh for QUARTER that belongs to {1,...,96}.
-        
-        return self.curt_price[ceil((quarter-1)/4)]
+        # for the specified generator and for time period 't+TIMESTEPS',
+        # 't' being the current period.
+        #   C = GETCURTPRICE(OBJ, GEN, TIMESTEPS) or
+        #   C = OBJ.GETCURTPRICE(GEN, TIMESTEPS) returns in C the cost of
+        #   curtailment per MWh for period t+TIMESTEPS that belongs to
+        #   {1,...,96} and for GEN that belongs to {0,...,N_gens-1}.
+        try:
+            if self.curtPrice[gen] is None:
+                return self.callables[("curtPrice",self.curtIdInGens.index(gen))](self.getQuarter(), self.getQuarter(timesteps))
+            else:
+                return self.curtPrice[self.curtIdInGens.index(gen)]
+        except ValueError:
+            raise ValueError("No curtailment service for generator "+str(gen)+".")
 
-    def getCurtState(self):
+    def getProdLimit(self, gen):
         # GETCURTSTATE Get the last curtailment instructions, i.e. the
         # power production limits that are currently active.
-            
-        return self.curt_state
+        try:
+            return self.prod_limit[self.curtIdInGens.index(gen)]
+        except ValueError:
+            raise ValueError("No curtailment service for generator "+str(gen)+".")
 
-    def getFlexCost(self, load):
+    def getFlexCost(self, load, timesteps=0):
         # GETFLEXCOST Get the activation cost of the flexibility service
         # associated to the specified load.
-        return 15.*abs(self.dPnom[load])
+        # LOAD must belong to {0,...,N_loads-1} and have a flexibility
+        # service.
+        try:
+            if self.flexPrice[self.flexIdInLoads.index(load)] is None:
+                return self.callables[("flexPrice",self.flexIdInLoads.index(load))](self.getQuarter(), self.getQuarter(timesteps))
+            else:
+                return self.flexPrice[self.flexIdInLoads.index(load)]
+        except ValueError:
+            raise ValueError("No flexibility service for load "+str(load)+".")
 
-    def getFlexOffsets(self):
-        # GETFLEXOFFSETS Get the current offsets in power injections of
-        # the flexible loads that is induced by the current modulation.
-
-        return self.dP_flex
+    def getFlexOffset(self, load):
+        # GETFLEXOFFSETS Get the amount of power demand shift currently provided by the
+        # flexible service of the load.
+        try:
+            return self.dP_flex[self.flexIdInLoads.index(load)]
+        except ValueError:
+            raise ValueError("No flexibility service for load "+str(load)+".")
 
     def getFlexSignal(self, load):
         # GETFLXSIGNAL Get a list of the offset values for the whole
         # modulation signal of the specified load.
+        # LOAD must belong to {0,...,N_loads-1} and have a flexibility
+        # service.
+        try:
+            return self.flexSignals[self.flexIdInLoads.index(load)]
+        except ValueError:
+            raise ValueError("No flexibility service for load "+str(load)+".")
 
-        return list(self.dPnom[load]*sin(1.8*pi*((self.Tflex[load]-t+1) - 0.5*(self.Tflex[load]+1))/(self.Tflex[load]-1)) for t in range(self.Tflex[load],0,-1))
-
-    def getFlexState(self):
+    def getFlexState(self, load):
         # GETFLEXSTATE Get the state (number of active periods left) of
-        # flexible loads.
-        return self.flex_state
+        # the flexible load. Zero means that the flexible service is inactive.
+        try:
+            return self.flex_state[self.flexIdInLoads.index(load)]
+        except ValueError:
+            raise ValueError("No flexibility service for load "+str(load)+".")
     
-    def getI(self):
-        # GETI Get the magnitude of the currents in the links of the
-        # network, in per unit.
+    def getI(self, branch):
+        # GETI Get the magnitude of the current magnitude in the branch, in per unit.
         
         if not self.computed:
             self.comp_elec_state()
 
         # Get current magnitude [p.u.] in links.
-        return self.I
+        try:
+            return self.I[branch]
+        except IndexError:
+            raise IndexError("Wrong branch id '"+str(branch)+"'.")
     
-    def getPCurtGens(self):
-        # GETPCURTGENS Get the active power injection of generators, in
-        # MW, accounting for curtailment instructions.
-        
-        return minimum(self.Pgens, self.curt_state)
+    def getPCurtGen(self, gen):
+        # GETPCURTGENS Get the active power injection of the generator, in
+        # MW, accounting for prospective curtailment instructions.
+        try:
+            return minimum(self.Pgens[gen], self.prod_limit[self.curtIdInGens.index(gen)])
+        except ValueError:
+             return self.Pgens[gen]
+        except IndexError:
+            raise IndexError("Wrong generator id '"+str(gen)+"'.")
     
-    def getPGens(self):
-        # GETPGENS Get the potential (without curtailment) active power
-        # injection of generators, in MW.
-        
-        return self.Pgens
+    def getPGen(self, gen):
+        # GETPGEN Get the potential (without curtailment) active power
+        # injection of the generator, in MW.
+        try:
+            return self.Pgens[gen]
+        except IndexError:
+            raise IndexError("Wrong generator id '"+str(gen)+"'.")
             
-    def getPLoads(self):
-        # GETPLOADS Get the baseline (without modulation) active power
+    def getPLoad(self, load):
+        # GETPLOAD Get the baseline (without modulation) active power
         # injection of loads, in MW.
-        
-        return -self.Ploads
+        try:
+            return -self.Ploads[load]
+        except IndexError:
+            raise IndexError("Wrong load id '"+str(load)+"'.")
     
-    def getPModLoads(self):
-        # GETPMODLOADS Get the active power injection of loads, in MW,
-        # accounting the modulations.
-        
-        return -self.Ploads + self.dP_flex
-            
-    def getQuarter(self):
+    def getPModLoad(self, load):
+        # GETPMODLOAD Get the active power injection of loads, in MW,
+        # accounting for prospective modulations.
+        try:
+            return -self.Ploads[load] + self.dP_flex[self.flexIdInLoads.index(load)]
+        except ValueError:
+            return -self.Ploads[load]
+        except IndexError:
+            raise IndexError("Wrong load id '"+str(load)+"'.")
+
+    def getQuarter(self, timesteps=0):
         # GETQUARTER Get the quarter of an hour in day of the current
         # time period.
-        
-        return self.q
+
+        return ((self.q+timesteps-1)%96)+1
+
+    def getCost(self):
+        if not self.computed:
+            self.comp_elec_state()
+
+        # Compute last transition's operational costs
+        curt_cost = sum([self.getCurtPrice(gen)*(self.getPGen(gen)-self.getPCurtGen(gen))/4.0 for gen in range(self.N_gens)])
+        flex_cost = sum([self.getFlexCost(load)*activated for load, activated in zip(self.flexIdInLoads, self.last_flex_act.tolist())])
+        return curt_cost + flex_cost
+
+    def isSafe(self):
+        if not self.computed:
+            self.comp_elec_state()
+
+        return self.isCurrentSafe() and self.isVoltageSafe()
+
+    def isVoltageSafe(self):
+        if not self.computed:
+            self.comp_elec_state()
+
+        return not any(greater(self.Vmagn, self.Vmax).tolist() + less(self.Vmagn, self.Vmin).tolist())
+
+    def isCurrentSafe(self):
+        if not self.computed:
+            self.comp_elec_state()
+
+        return not any(greater(self.I, self.ratings).tolist())
 
     def getReward(self):
         # GETREWARD Return the instantaneous reward associeted to the
         # last transition of the system.
         
-        if not self.computed:
-            self.comp_elec_state()
-        
         # Compute last transition's reward
-        return -sum(self.curt_price[ceil(self.q/4)-1]*maximum(self.Pgens - self.curt_state, 0.))/4. - sum(15.*self.last_flex_act*abs(self.dPnom)) - sum(1e5*greater(self.Vmagn, self.Vmax)) - sum(1e5*less(self.Vmagn, self.Vmin)) - sum(1e5*greater(self.I, self.ratings))
+        if self.isSafe():
+            return -self.getCost()
+        else:
+            return -1.0e5
 
     def getSolarIr(self):
         # GETSOLARIR Get the current solar irradiance, in W per m^2.
-        
+
         return self.ir
     
-    def getV(self):
-       # GETV Get the magnitude of the voltages at the buses, in per
-       # unit, including the slack bus.
+    def getV(self, bus):
+       # GETV Get the magnitude of the voltages at the bus, in per
+       # unit.
         
         if not self.computed:
             self.comp_elec_state()
-        
-        return concatenate(([self.V_slack],self.Vmagn))
-    
+
+        if bus==0:
+            return self.V_slack
+
+        try:
+            return self.Vmagn[bus-1]
+        except IndexError:
+            raise IndexError("Wrong bus id '"+str(bus)+"'.")
+
     def getWindSpeed(self):
         # GETWINDSPEED Get the current wind speed, in meters per second.
         
         return self.ws
 
-    def setCurtailment(self, curt_gen):
-        # SETCURTAILMENT Set the curtailment instructions for the next
-        # period. The shape of the input vector must be (N_gens,).
-        
-        # Check validity of inputs
-        if sum(less(curt_gen, 0)) > 0:
-            raise ValueError("Error: a production level upper limit cannot be negative.")
-        
-        if asarray(curt_gen).shape != asarray(self.curt_state).shape:
-            raise ValueError("Error: 'curt_gen' must be a vector (1D) of length 'N_gens'.")
-        
-        # Update curtailment instructions
-        self.curt_insts = asarray(curt_gen)
+    def setPmax(self, gen, p_max):
+        try:
+            self.curt_insts[self.curtIdInGens.index(gen)] = p_max
+        except ValueError:
+            raise ValueError("No curtailment service for generator "+str(gen)+".")
 
-    def setFlexAct(self, flex_act):
-        # SETFLEXACT Set the activation instructions of the flexible
-        # services for the next period. The shape of the input vector
-        # must be (N_loads,).
-        
-        # Check validity of inputs
-        if asarray(flex_act).shape != self.flex_state.shape:
-            raise ValueError("Error: 'flex_act' must be a vector of length N_loads.")
-        
-        if (sum(greater(flex_act,1)) + sum(less(flex_act,0))) != 0:
-            raise ValueError("Error: flex_act' must be a vector of 0's (no activation) and 1's (activation).")
-        
-        if any(flex_act != floor(flex_act)):
-            raise ValueError("Error: 'flex_act' must be a vector of 0's (no activation) and 1's (activation).")
-        
-        if sum(flex_act*self.flex_state) != 0:
-            raise ValueError("Error: trying to activate a flexibility service that is still running.")
-        
-        # Update activation instructions
-        self.flex_act = flex_act;       
+    def activateFlex(self, load):
+        try:
+            self.flex_act[self.flexIdInLoads.index(load)] = 1
+        except ValueError:
+            raise ValueError("No flexibility service for load "+str(load)+".")
 
     def transition(self):
         # TRANSITION Simulate a transistion of the system, accounting
@@ -217,13 +396,13 @@ class Simulator:
         self.computed = False
 
         # Update state of flexible loads.
-        self.flex_state = maximum(self.flex_state-1, 0) + self.flex_act*self.Tflex
+        self.flex_state = maximum(self.flex_state-1, 0) + self.flex_act*self.flexT
 
         # Update curtailment state.
-        self.curt_state = self.curt_insts
+        self.prod_limit = self.curt_insts
         
         # Compute value of load modulation signals.
-        self.dP_flex = greater(self.flex_state,0)*self.dPnom*sin(1.8*pi*((self.Tflex-self.flex_state+1) - 0.5*(self.Tflex+1))/(self.Tflex-1))
+        self.dP_flex = greater(self.flex_state,0)*array([signal[T-s-1] for signal, T, s in zip(self.flexSignals,self.flexT,self.flex_state)])
 
         # Increment the quarter of hour of the day
         self.q = (self.q % 96) + 1
@@ -231,25 +410,26 @@ class Simulator:
         # Stochastic transition of the consumption of loads.
         Pload_means = self.nn_out(append([self.Ploads*1e6],[[self.q]*self.N_loads],0).T, self.P_means_centering,self.P_means_scaling,self.P_means_w0,self.P_means_offset0,self.P_means_w1,self.P_means_offset1,self.P_means_uncenter,self.P_means_unscale)/1e6
         Pload_stds = self.nn_out(atleast_2d([[self.q]*self.N_loads]).T,atleast_2d(self.P_stds_centering).T,atleast_2d(self.P_stds_scaling).T,atleast_3d(self.P_stds_w0),self.P_stds_offset0,self.P_stds_w1,self.P_stds_offset1,self.P_stds_uncenter,self.P_stds_unscale)/1e6
-        self.Ploads = random.normal(Pload_means,maximum(Pload_stds,1e-6))
+        self.Ploads = self.rng.normal(Pload_means,maximum(Pload_stds,1e-6))
 
         # Stochastic transition of the weather (irradiance and wind speed)
         weath_means = self.nn_out([[self.ws,self.q],[self.ir,self.q]],self.weath_means_centering,self.weath_means_scaling,self.weath_means_w0,self.weath_means_offset0,self.weath_means_w1,self.weath_means_offset1,self.weath_means_uncenter,self.weath_means_unscale)
         weath_stds = self.nn_out([[self.q],[self.q]],atleast_2d(self.weath_stds_centering).T,atleast_2d(self.weath_stds_scaling).T,atleast_3d(self.weath_stds_w0),self.weath_stds_offset0,self.weath_stds_w1,self.weath_stds_offset1,self.weath_stds_uncenter,self.weath_stds_unscale)
-        [self.ws, self.ir] = maximum(random.normal(weath_means,maximum(weath_stds,1e-6)),0)
+        [self.ws, self.ir] = maximum(self.rng.normal(weath_means,maximum(weath_stds,1e-6)),0)
 
         # Distributed generation from weather data
         self.Pgens = append(self.ir_to_pv*self.ir,[(10.0/6.0)*min(15000.0*(self.ws-3.5)**3,3000000.0)*(self.ws>=3.5)*(self.ws<=25)]*6)/1e6
 
         # Reset instructions for next period.
         self.last_flex_act = self.flex_act
-        self.flex_act = zeros(self.N_loads, dtype=integer)
-        self.curt_insts = 1e2*ones(self.N_gens)
+        self.flex_act = zeros(self.N_flex, dtype=integer)
+        self.curt_insts = 1e2*ones(self.N_curt)
 
     def comp_elec_state(self):
         # Aggregate power injections at buses
-        Pbus = self.dev2bus.dot(concatenate((self.getPModLoads(),self.getPCurtGens())))
-        Qbus = self.dev2bus.dot(concatenate((self.getPModLoads(),self.getPCurtGens()))*self.qp)
+        P_devices = array([self.getPModLoad(load) for load in range(self.N_loads)]+[self.getPCurtGen(gen) for gen in range(self.N_gens)])
+        Pbus = self.dev2bus.dot(P_devices)
+        Qbus = self.dev2bus.dot(P_devices*self.qp)
         
         # Solve power flow equations
         x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1e-4}).x
@@ -264,23 +444,9 @@ class Simulator:
         # Indicate that the electrical state is now computed.
         self.computed = True
 
-    # Data structures for solving power flow equations
-    Vflat = theano.tensor.vector("Vflat")
-    V = Vflat[0:N_buses]+1j*Vflat[N_buses:]
-    Y = theano.tensor.zmatrix("Y")
-    P_inj = theano.tensor.vector("P")
-    Q_inj = theano.tensor.vector("Q")
-    S_inj = Y.conj().dot(V.conj())*V
-
-    pf_eqs = theano.function([Vflat,Y,P_inj,Q_inj], theano.tensor.concatenate(  (S_inj[1:].real-P_inj
-                                                                                ,S_inj[1:].imag-Q_inj
-                                                                                ,[V[0].real-V_slack]
-                                                                                ,[V[0].imag]) ))
     # Params of functions and random variables used for stochastic transitions
-    srng = RandomStreams()
     P_init_mean = [69542.1093, 89285.8933, 69542.1093, 89285.8933, 69542.1093, 89285.8933, 69662.8373, 69662.8373, 17039.0027, 87713.456, 75357.9947, 75357.9947, 75357.9947, 112278.2773, 112278.2773, 112441.9547, 112441.9547, 75357.9947, 75357.9947, 75357.9947, 112278.2773, 112278.2773, 112441.9547, 112441.9547, 76758.5333, 76884.3867, 76884.3867, 76884.3867, 114058.0853, 114667.9573, 114667.9573, 114667.9573, 114667.9573, 60749.976, 60958.7947, 60958.7947, 60958.7947, 60958.7947, 100386.5947, 60958.7947, 60958.7947, 60958.7947, 60958.7947, 60958.7947, 99684.92, 39726.3253, 100386.5947, 39935.144, 100386.5947, 39935.144, 100386.5947, 39935.144, 100386.5947]
     P_init_std = [8618.3644, 7803.1547, 6395.2863, 10225.9181, 7348.6874, 9054.9391, 7462.8012, 6738.1444, 4585.7015, 11361.525, 9092.0135, 10210.7931, 10063.4358, 8895.0148, 8903.4769, 10319.9301, 12074.5085, 8280.0984, 9035.5069, 10876.5701, 7384.6664, 12569.4614, 11359.2309, 9896.597, 10087.8676, 5822.8098, 10320.0791, 9493.182, 11243.2262, 8647.4884, 12568.4498, 8667.831, 10906.4146, 6979.9636, 7756.441, 7177.3051, 7393.594, 6581.5904, 10766.0508, 6780.946, 8822.1733, 8695.8488, 9637.5725, 6992.3361, 7775.9525, 5367.5266, 9779.2269, 6503.8941, 9579.2434, 6749.8151, 9126.0993, 5960.0923, 10378.4643]
-    P_init = theano.function([], srng.normal(size=(len(P_init_mean),),avg=P_init_mean,std=P_init_std))
 
     P_means_w0 = [[[4.07877150348624, -3.56518763871577], [-0.705942888958763, 5.07861410161252], [4.45256557526161, 1.55282799715555], [3.06113297235703, -5.24126674023288], [1.45542574202723, -1.83052549405447], [4.04658403090413, 3.45190145991757], [-3.00678999924973, 4.07556317448791], [-1.4369102623892, -7.08983825576653], [-0.158536549695227, 7.42905802427003], [0.705532307523573, -5.65570058554981], [0.726004242528728, 4.20257073785594], [0.0610375238447974, 7.27238631171774], [0.491590017299839, -4.05348221230043], [-5.79767954936149, 0.791426998877709], [-6.36397757633045, -1.11643168155706]], [[-38.6651542165175, -25.3852153923141], [33.5563465987367, 75.3611007360865], [4.53761183496966, 14.238817939685], [-29.7371766055985, -21.9630165079277], [-3.34564081716221, 2.0804469625485], [15.0530041448616, 25.5824099352215], [37.0115276886021, 0.6663300456509], [-2.8144896058348, 0.516073482499335], [-3.75168825124684, 5.23533630073418], [-1.0944474863618, 8.61982353826999], [-2.04077851098975, 12.5007299938299], [-2.84428504919053, -88.2404202103315], [-0.599597091375673, 6.36682366345908], [-0.129728472541914, 5.11690733847308], [-49.5787788939036, 8.87433403438595]], [[4.48589006568579, -2.78801769025701], [-2.31946281365125, 4.41044486234338], [1.17625971053182, 4.93153330600291], [-3.57510599279708, 3.78916386985699], [-6.32520217517351, -1.2552018151273], [3.87872082007927, -3.74962284416483], [0.717765066527929, 4.45928151528612], [1.59118644728862, -3.7624753404805], [0.0673409815809726, 3.73022791900824], [4.51893805528169, -3.88827896390318], [-3.50587926069908, 3.18290956183074], [-4.29663591936469, 4.02818960204804], [0.0684056183357414, -5.00927799518317], [3.43462051620982, 4.52487452895812], [3.77803201511748, -3.96213759326674]], [[1.26303398515445, -8.4172572241817], [1.74870768519573, 7.85458848375609], [-2.64688722767581, 1.85449905589925], [-1.03417662684916, -2.26281070571183], [1.9499619845973, -12.5100049346669], [2.7497098869563, 0.744370288585963], [-2.1895310371928, 4.31127664937896], [2.6958026680136, -0.119715213407617], [6.15396112070216, -0.681100183459882], [-4.00047737908127, -6.62563672612427], [2.90589524103231, 6.92127995845334], [4.0294453921712, 7.87620942197495], [-7.18277050734098, 6.04481109179154], [0.622081510915309, 7.71367435210894], [5.18618602298109, -5.72150426253058]], [[3.00061195672248, 3.16403214487763], [2.65010186917988, -2.49770888640892], [-11.6580510402164, 6.71418238504071], [-4.74233885649372, -6.10312230008686], [-3.62962466978872, -3.51892010269151], [-6.22019584761155, 5.90719220148881], [-2.17241442182714, 0.599195434332857], [-1.79603833783683, -4.02223419963429], [-4.85987304328318, -4.52789127343023], [1.83978153126195, 8.21962254656736], [-7.29394378102872, -3.19335715263179], [3.92739318640003, -0.124843362345982], [7.1211576841413, 0.467529963162096], [5.65407284070358, 0.732150690362027], [1.88166329684768, 9.91708483860825]], [[-2.74727434188112, 2.68408406321561], [-3.69313790173497, -3.99377294024783], [-4.27552617040658, 0.855048259002884], [-1.04187378397771, -6.0996759416757], [1.35231680101466, 0.855756140458287], [-5.40071876437855, 1.05380623612124], [-10.813547242964, -6.34427176311076], [-2.72876353555449, -1.88921228344568], [6.0871738241764, 0.147164485180142], [-0.951019248647568, 5.87897435766344], [-0.171449089064374, -6.27316895437634], [2.48022935142368, 1.34054157801927], [4.52682023493616, -0.424817620904172], [1.14868928318807, 3.32607835646274], [-5.90009332455465, 0.967444991340238]], [[3.68279474721748, -3.55844487195088], [-1.9344296572331, -12.0794788112321], [-10.1301812593753, -2.31994180400562], [-5.51263250962521, -2.98042136651072], [-0.163752304892008, -6.27320533556657], [2.65234415959586, -18.3430585686587], [-1.51030448926791, -11.5739205534959], [2.30087051625058, 11.6530079472143], [8.23856657117645, -4.35294573234912], [13.2190002492767, 4.25628424941012], [7.06864396522678, -16.3802691714264], [-2.11453307630639, -17.5994184993577], [-6.54750486621127, 5.19764065280984], [4.77890205794922, 10.1309017297043], [0.952968499149779, -0.284772856043297]], [[2.15154078727223, -9.55654963793375], [1.14183883665204, -8.08000975717336], [-0.653007878754242, 3.63244531580975], [3.20052135658061, 0.280944978075966], [0.488409600002089, -9.36684986819163], [-0.681775406292227, 4.41408495410847], [4.5068155517609, 2.1465778914759], [3.28764260015035, 3.33378250134865], [0.773175593595147, -10.6161910534855], [3.10572567534684, 0.5372483471181], [1.4406047508039, 8.68091872127284], [-6.07842412391094, 2.89150079791857], [-0.655899454814428, -7.09314748329683], [-0.134256816647227, 2.53662920064228], [6.42704559815086, -0.655565158196759]], [[2.55187771049152, -4.46661919881968], [-2.69188480785093, -3.8906275822671], [6.15187128917825, 2.93538029138273], [3.13097872175074, -2.73972324739916], [-4.74924791442048, -0.121783210020432], [3.37983915823361, -3.98206056146968], [-1.12067662147656, -4.57986159863495], [5.01648559705152, 2.63748965610602], [-3.70423511809639, 1.43077839771331], [-2.47966233096443, 5.03393648018305], [-7.03712535828975, 1.70378254646464], [4.40354399493919, 0.579035402209174], [-5.68402930054117, -2.26568035408179], [-3.20683407047681, -7.31139528862069], [0.175031283718437, -5.59962912784413]], [[1.70865686928014, -1.75151960284746], [1.5499062248163, 7.11609089186611], [1.12975566628858, 5.85278587228202], [0.927898607038318, 5.03449410043036], [-24.3166463350735, 24.1712576728923], [1.07366976875942, 6.72459007493374], [-1.82754085401679, -12.5517753889214], [8.25033611770979, 14.4309125440938], [0.87400139357227, 0.222787563209496], [2.62725777375411, 8.93019096741944], [11.6454284783414, -0.589726071810351], [-0.579258944529821, -0.751535386308461], [-22.2057753328996, 4.66547869256947], [-6.85138733435813, 6.01026157627617], [25.4403273761595, -31.7869844403831]], [[3.30989024710156, -5.68744106120521], [-7.46249311909062, 0.979585883844956], [1.43756670783483, 3.3209305486994], [-3.99787700601875, -3.82608411426188], [-3.630969984067, -1.35946509423074], [-0.664700747570499, 3.09681942462682], [-3.41236849640028, 3.39991290790236], [-5.77872276682112, -4.92500756892057], [-7.62017269344436, 4.21573288515758], [2.2784125045844, 3.01040483742458], [0.661340606519208, -5.65973448835523], [-2.15252411191023, 0.405717459770492], [3.51559420329693, 3.20979057235167], [4.66918316639071, 0.73805658217576], [-3.67488442974484, -4.33894793103918]], [[3.35137359350655, -4.23788438509957], [-2.13931782963181, -6.9328080448866], [-5.72486364531838, 7.1678376929042], [1.50265578849407, -2.22528409496563], [3.45944001928005, -6.61808407885923], [-4.9242009360772, -7.23332478586376], [1.09067773163202, -9.15325193516441], [-3.25835848314781, -0.858830596516349], [-1.20113213283615, 7.57548971321035], [8.22019956050246, 0.772937954302617], [2.97658579304834, 6.15886132144256], [-0.163509250716862, -5.03725603436993], [0.863547774093415, 9.06853005451266], [-1.90013228549205, -7.9829632221471], [4.37979672113577, -5.78185251257897]], [[-3.65509940754063, -3.12320035160218], [1.87278979769546, 5.91118662230118], [-3.10704342186307, 4.72099031194092], [-6.67661389304964, 9.26004921980328], [-2.26925325815736, -2.63237502668055], [2.13556227788065, 13.2210427830939], [1.25515691058804, -13.6115610465599], [1.94879177666222, 4.89549242767957], [0.606674980788586, 4.57927302774651], [7.31306492315053, 3.66771025783091], [1.61144078448553, -4.12450431802494], [-0.0288654784047972, -2.31942726820446], [-2.68089946673483, -6.94548356661657], [-0.283753720912127, -5.6774901435523], [-1.11965129424116, -10.0602998012176]], [[8.38733524514014, 5.750137115559], [-4.17448486324703, -3.94956285561279], [-6.16345561561313, 5.04144671822132], [-3.28206126655428, -3.40839718669455], [0.614791236172487, 9.08997860986913], [-6.14917329888894, 1.95986676734727], [-4.03466324308457, 1.31454664635274], [6.14523821344512, -4.87671322205194], [-0.783660496827363, -5.4070893089705], [-0.719250099248716, -9.39698246210118], [1.06823655379813, 8.81098593451251], [-2.85285347857711, 3.09446986875883], [-7.37267820230957, 6.59640831712808], [-7.83235038411175, -5.94598574245875], [0.51731099478354, -4.71771256383999]], [[-0.574072805851909, -6.27464328153717], [-1.13533925476906, -4.72120434317425], [1.45454901973893, -3.5583837550894], [-0.458321170653438, -7.77519731888734], [-1.17771463829301, 8.51730555207594], [1.89370473620777, 5.53577681197305], [1.71133504256512, -0.632285218851246], [-3.20153826430823, 2.08175916982388], [-1.59902506676867, 8.22016593336959], [2.21652596870204, -2.76234122709878], [2.33041016723325, -6.09678380531836], [5.20887222623094, -3.46705019622398], [0.163336470069674, 6.07558177040513], [-1.16279620729895, -7.20238750698536], [8.05075034734307, -4.72638108020669]], [[-5.8417944276674, -31.2636414170254], [-0.58085725086883, 0.13569679171342], [-9.8537937745176, -6.53372793052579], [-7.82342028366692, 2.3850689665746], [6.06087945600474, -3.90878061868496], [0.963868959838007, 4.12172654724949], [33.5064017610461, 21.0323665990822], [4.97650689438984, -1.2466391110196], [-1.33556109332734, 6.01527604439028], [0.944651852121652, 4.60917492542342], [1.55192989186544, -5.50038115742755], [4.50744180477839, -1.11947793081749], [1.2124670802635, -6.7493294709367], [0.466821247099912, 8.92789724689407], [0.0378449610908056, -27.6311332776185]], [[-4.65311748109814, 2.61053666324534], [-4.30394699806307, 5.09031018046073], [-3.37525009730263, 4.35601120060799], [-2.26480788748196, -5.87338087380868], [4.95873255797272, -0.0138624305370668], [1.5216472552284, 8.18584494656366], [-5.64126469354007, -1.33064014687131], [-1.42599983267533, 0.537301248157261], [-0.573876290157899, -4.09506165758868], [-6.03539375606892, 4.66727119350696], [-4.65319371861531, 5.02304781328702], [5.34159489972581, 2.10660220565844], [-8.05861958477557, -3.27103342525149], [1.20468247219459, 7.44786390326558], [-0.446706735947607, 6.8374340531691]], [[-2.75599187387698, -2.20099682259505], [0.895290012274917, -6.12302722371428], [4.8289491146459, -0.298217145523803], [-7.43724751839999, 0.0541217485938981], [-1.44905103523651, -7.55156432787643], [0.190788425385788, -11.1105731135226], [-5.48393857454331, 2.47714974359377], [-3.77155271388944, 4.33995963202175], [0.40207119650196, -0.526676114903479], [1.18427653216276, 5.84553889142109], [-1.94263242426331, -8.47904124021136], [-0.721136935618431, -2.86439260078199], [-5.94414512135775, -5.06436433060464], [-5.41664331982766, -2.49516816767431], [10.3711303564824, -3.74978747729318]], [[-0.515615969447179, -4.91971508627018], [0.0928706313375967, -5.10372105546725], [1.28624611210228, -11.2634891076897], [-1.10033219550414, -8.90528194074249], [1.16904410749463, 3.99741231102587], [0.684716597082611, -5.65136197122482], [-1.70574140891738, 2.34176271820893], [2.68843624550111, -3.51657060386147], [4.8068950253746, -1.46902835550802], [-9.37153696475802, -1.15131949846677], [1.64970327061807, -10.0456289170543], [1.66456935820479, 0.671643670234125], [1.41970465700127, 7.86400518645268], [1.31179747910153, -4.50895545996038], [-5.34475685312135, -1.10665926268044]], [[4.0010366123757, 3.49398228007608], [-1.81307647774142, -6.02687137600858], [2.02177246274534, -4.51445369262563], [-2.50377635575571, 6.36203536703332], [3.67396099620743, 0.366265113032038], [-0.46576304725214, 7.24184127712447], [-1.2278182926588, 6.11523907926796], [-5.91364720614965, 2.03871491158744], [-3.970252955547, -1.18503989214526], [4.37368625274087, 4.84795304323477], [-2.63726006483569, -5.13324492167145], [0.740120558288642, 5.87675809414439], [1.82172210847602, 3.55488888423154], [4.17111279190831, -3.86020598473393], [5.82570535648184, -0.939535615108174]], [[8.11557542326828, -3.3690742304648], [-13.9970372891203, -4.67918861303345], [-0.635948623720554, -11.2618274816139], [0.00019360950340994, 2.81816456070723], [-0.920892925558566, 5.87766017283643], [-16.1304950949398, 1.58706061779378], [-16.0579883004018, 7.88799900016855], [0.134282459782806, 2.5351044396219], [0.480345030837731, 4.71247100141133], [-0.25277024772606, 4.81384486337422], [0.117789379316973, 1.2636772563015], [-26.1334452082204, 6.56476041830415], [-0.24058185015999, 9.98150950680237], [4.50401756165326, 63.5598973226494], [-1.5266410500781, 11.6521931982746]], [[4.4954770279055, -2.42700143961229], [-0.950718917880874, -6.69567729661821], [-4.28647813506904, -9.60451388785012], [1.51798604178928, -2.10107311618831], [0.823246096494109, 1.42147310844463], [-11.9806334786568, -6.27877323097243], [-13.5078105331215, 14.4553610304029], [2.17978287005283, 1.83072984177355], [-14.6490456336714, 17.3474131454465], [1.89122599749223, 2.53065593741009], [-1.39363611664444, -0.365744223765225], [16.0644319547211, -6.99738464264358], [-7.70737784447037, -7.01410307674743], [-0.738274032275695, 13.9357986553846], [-0.176779392301477, -9.44158130580231]], [[2.44501986103978, 3.8089731049737], [3.22704577731422, 3.55215402534798], [5.03276659513902, -1.80088784262066], [-2.78479713918792, 7.28568203248126], [-0.670579673042813, -2.38122946044334], [-2.40039143617565, 1.87880367319349], [0.650165496709063, 0.873712144951067], [1.2200953400797, -1.1704806434105], [-4.55013788557117, -1.75253260608943], [-8.67396447251553, 0.246838104265888], [3.70455629861675, -8.26151619592469], [-2.78988317631851, 5.3226462189442], [3.20683015120818, -4.09828517979151], [-3.34513246509326, 3.52524725912751], [-1.42482161782169, 5.98575134066097]], [[-4.33193124290955, -1.81928354867991], [-2.10075442756988, -8.24804958111899], [1.71708304445412, 5.09265085546775], [-5.64120053403143, 4.01793653651263], [3.43258761230174, -5.45197965628494], [-7.75117635016496, 1.10598103268029], [0.891199241038495, -4.66168023646619], [3.1945000410775, -6.28979959473791], [2.10461397933512, 3.4494845842639], [-0.269733888879475, 2.82566784595564], [-0.0500750411829943, 4.53626178015942], [-7.78956050915683, -8.53323796760751], [-1.45551764764549, -8.29245516683315], [-8.02349022829521, -2.99998619543062], [-6.59034250175174, 3.94426063255849]], [[4.57723518302483, -2.4920079131024], [1.13386805578095, 5.50498535361591], [-4.6053835843453, 0.628240086594441], [-4.00228468828934, 3.41379561989117], [4.79777888246483, -4.52450367987978], [0.435308244155786, 6.58381837240448], [0.730900202626523, -2.92145000558792], [8.13457188879072, -1.98916804904881], [0.487255948596029, -5.31066667495709], [-3.26346377059309, -4.37853295690477], [2.22962165323571, 8.70809371510747], [-0.482991495382062, 8.20504740388541], [-0.874901131071459, -7.0453396708993], [4.76951099805376, -2.50361370236398], [3.46645237937129, 2.25109780304579]], [[-0.016502935897471, 8.57312408555566], [-2.2867637461674, 4.70160708072304], [-7.11251859611944, -6.29716954986802], [-3.30135921605622, -5.43704902022169], [-1.09197597239331, -1.73619611726749], [-9.697635060155, 2.3398983864904], [-4.80804399406786, 0.234546998920148], [0.512016031695225, 4.39610394626876], [1.18999783402862, 9.2125952490044], [1.98779635845331, -3.7334125430955], [-4.50461026352674, -0.202249795814677], [0.020453701759608, -11.5916042959991], [0.88287687842216, 6.86815192373453], [-7.85809903151626, 5.26269805378352], [0.594041226577108, 8.43758545295976]], [[-0.191325327334846, 2.57672617749339], [-4.4147957256601, -0.309794197062292], [-4.6460158608417, 4.6666544469348], [-1.84780787157693, 2.42256485627277], [-5.95996606416961, -6.31991819450957], [8.51548251457875, 0.762505547469681], [-4.30071831857699, -4.13782376027741], [0.836998890485343, 2.78445140516311], [-1.03178156579449, -6.64879719736913], [0.507048810749555, 10.9486883696007], [-0.907716174711088, -4.83124133255399], [6.60927349626304, -1.96911585342098], [-2.4271490188578, -4.66245073799091], [0.946476971195654, 8.23483222574065], [-1.7083064219623, -5.4107263584553]], [[-7.11989067482643, -1.76149372521248], [0.835687539864696, 6.43689317744557], [-3.43410536853213, 3.9242571128102], [-2.54022953572117, 0.787116271761293], [-0.939517972245156, -8.66902094878475], [6.89463171294181, 5.97109067034258], [5.27461860573387, -5.30224891588574], [-3.39332204671207, 6.10213007982236], [2.67701716294956, -0.945789174331009], [-0.437138376157371, 3.01633947279973], [6.11372973923987, -3.7538210497484], [-2.48807470682064, 0.576872702667259], [3.80425343300839, 6.81404581625285], [-3.05205837397293, 1.52938566522877], [-8.6257605651361, 0.654546505133285]], [[4.10164850069486, -4.30599475930258], [-3.48978630071884, 2.32257787374487], [-3.63867265314516, -2.13178301735223], [-4.74836580748156, -2.51863127195005], [-3.72696182200452, -4.06369533750626], [-7.72051140943731, -1.70362218117076], [-4.19017993349989, 4.33948190388683], [1.00886942014211, -8.82058851957875], [1.60993751649816, -8.02544297880565], [2.63839966890153, 5.15196306138577], [-6.1089095076561, 1.56346804187584], [-2.03793423784169, -3.99493414868661], [3.37947789481413, -0.95998019186085], [-5.52954245211969, 1.27853176234505], [0.683310502411715, 7.84432700963629]], [[5.17405903827434, 6.32620045031189], [10.054742703702, -8.93963424053582], [-24.9068813176352, -18.2198201076024], [-16.4206675736509, 12.6921625302502], [13.2637206833549, 14.290793060687], [0.642513002626429, -13.9084005494259], [-14.3831145711283, 12.2302367660909], [-3.21811307172626, 1.34961870753214], [0.741516630885461, -0.39768643233217], [-4.42861215768701, -11.3555938553757], [-0.973527768728407, 1.61061218588193], [200.051727330056, -114.817508009051], [5.46322026026871, 5.47071990047964], [22.9001952712397, -9.01610991233962], [-7.28265878675183, 4.00550846053278]], [[-0.0906321367911995, -4.51683492937253], [4.9718357053637, -1.78538404309692], [5.90093317595588, -1.48811207146748], [-3.18433288499, 4.80619904244176], [1.73167436435961, -2.5589042078417], [9.04659594206053, -3.21215277492482], [2.05091635958428, 6.91013349645154], [4.71605856210763, 2.03835820857358], [5.73530903916325, 1.6160391719277], [-2.75942214875748, 4.9393999533402], [-0.738311764757295, -2.12870497228953], [1.4048662924737, 3.94268261318527], [-3.52052791300009, -0.0692966326015779], [-0.986213132545903, 5.98807726434543], [2.38901309085107, -4.6739225925418]], [[4.19642745801002, -3.4224480655276], [-4.09435020178681, 3.98082892178272], [0.673401786404081, -9.30117407017099], [-2.81474323201242, -0.716798146219082], [6.07034981414789, -2.11532278379506], [1.46255723297864, 13.6527931956977], [-8.02496408299183, 5.13412888402883], [-8.34037484658884, -4.04696601856113], [2.83850497563651, -2.30167051930161], [-6.46931346245891, 0.887219890950427], [0.797902448796861, 7.21254107222914], [3.02374804420364, -3.65953223063417], [-1.14055444771938, -9.36969626194119], [-0.520720617494402, 5.95880353385796], [-2.49414902487646, -3.97117644174406]], [[0.995141499172879, -2.98069788193602], [-5.78204270620005, -2.21556200906432], [0.91176927353634, 5.49833788732538], [1.9643845195051, 3.2122718635762], [0.780847677456203, 7.45672640819379], [4.83863725151097, 0.11494238237695], [-1.03657244123424, -1.64344872581593], [0.065466070541305, 5.50617660661505], [-0.0588556470342717, -3.14574824078656], [-0.636002562755176, -3.22761000412368], [3.64927623802071, 7.46411647169969], [4.22653708478001, 12.1922852931992], [-0.746466739678684, 7.6550578459116], [6.44012675464896, -4.39490837404709], [3.1258355199941, 9.71553065848421]], [[0.419594307336383, 6.04202919240648], [1.25517095989893, 0.601431690031396], [0.218728144059845, 9.47982948717443], [-1.06101420579843, -5.30174088990322], [4.1079649265594, -0.645008181956223], [-2.014184030029, 3.05913626709991], [-0.405807917593045, -2.76138915293758], [-0.569303121149974, -6.05073846430055], [-3.05352787392197, 4.81935057022378], [-2.30368729789727, -0.206336110619548], [4.86046117566924, 3.52393754763858], [-1.04604952593998, 4.38195189661306], [0.977528982120841, 8.19533138744645], [3.01747886283892, -4.43319724953707], [2.1979446740574, -5.26435795167874]], [[3.99072945214989, -3.39561202076896], [5.7879711641182, -2.42713204443233], [7.98405933382027, -4.58203774318156], [-4.90638525214472, 6.36314727571165], [-12.0312733539776, 3.72579746409717], [0.871049276966268, 7.34684069321076], [2.05957656908199, 3.86475879005074], [-1.15619065111992, -8.78811374041657], [-0.768626610994531, 19.0394947961706], [0.427435171664245, -15.0972387236982], [3.27015922927663, -1.05694994722532], [0.900277559310207, -1.11817131677545], [1.17661817830638, 9.98287834990668], [1.12245638302279, 3.52267171993303], [-0.673891570699711, -8.09891242947339]], [[-3.21901488761844, 3.9592545069155], [-1.83913975476608, 3.33458887702696], [0.699816151029038, 12.3207341074243], [-3.26818893781441, -1.05891431303751], [2.13574646811498, -6.8929371020515], [-8.04522937835488, 7.50284651380094], [-3.54162353123964, -1.05095177747388], [1.16811662175724, -12.2465783321543], [-1.55841082777493, 3.25635439390854], [-1.40147703112421, 5.44494717731099], [1.343998971629, -4.28989355303511], [-1.55236739821233, 0.0415592971644179], [0.970516964440305, 7.04787715264861], [0.890839554149223, -4.51526611812676], [-7.06198870395495, 7.06150685893271]], [[10.8807978404229, -0.745199379492441], [-7.44537473847936, 6.8544316940817], [2.051525160191, 16.849274521566], [9.80281969680401, 4.30174103158341], [-7.65701823767079, -1.10313197271011], [8.79115463874699, -0.887673663927242], [-1.12503767073448, 1.17325036916732], [0.045463046850013, -15.0018582042756], [-5.99752080198759, 8.25065347785066], [-13.8780225832648, 1.17095574518868], [4.67199438836039, -4.71777896014617], [10.1422170753523, 17.1427656571051], [-6.87207467770151, -3.80384858065098], [-6.56277981134903, -0.857200004643934], [3.44187998676479, 10.8895491160446]], [[-9.1630971797653, 2.46644615682967], [-4.29723930410533, 2.8631441092125], [-3.70703333719642, -5.13819042267182], [2.26540168718004, -2.03195265879599], [-1.54826818363741, -2.91499593442053], [3.26547914240126, -4.62390481733972], [-5.95926281992641, 1.46381375020628], [-2.80878617011031, 0.268437703913337], [4.15398404898958, -3.2913253104492], [-3.57439312547863, -1.3969454298372], [-5.67523798020291, 1.24000838199201], [-3.42791142643515, 2.01852999106775], [-0.0989670440006946, 5.91212459038658], [2.79833890663726, 7.42344550997127], [-3.96681376683004, 1.61351197344486]], [[0.0415360056766102, -5.36408840440677], [3.58078502940398, -4.28526886228261], [-5.8005972945185, -0.360281494375585], [8.34227863787916, 2.29865228097735], [1.48289280443868, 5.40953175165631], [-0.716644006898182, -6.05204674247913], [-1.39503206300039, 7.08292293376633], [-5.30690026834004, 0.622145565366195], [-2.02957343958607, -2.55676979644569], [7.74876348856805, -0.445655195564208], [5.07355015367811, 5.37416444755185], [-5.78459727631832, -4.40919059402408], [-2.13291851160771, -3.89170110242218], [-4.91116506232774, -3.55892907353498], [-0.973335526110557, -4.6950438204303]], [[-5.02496839546822, 2.28677652647651], [-7.21497497186552, -0.427603994199369], [-2.63074870477766, 2.99766315821171], [1.11587347243667, 0.22982527975889], [1.45255699194804, 7.16094998706544], [4.56426573982409, 0.828660943845888], [-4.91924526332423, -10.0632750772122], [4.43076206866409, 0.0928969785043968], [2.35523162549524, 7.99459555815125], [-1.07518717521998, 1.4251982397682], [-1.09249418407206, -2.74626252116885], [-3.23195909118067, -1.95222438335456], [-0.263938941828677, 5.17010485819421], [-1.03225764767737, -5.48504523733755], [-1.44554250069386, -6.99981056155377]], [[-0.37131499665696, -8.28337089053036], [-3.03349423176859, 4.50143357127052], [2.40465536111414, 2.65166602072098], [0.851376374827651, 0.973486802082395], [-0.0146068784959951, -1.79360680637732], [5.17620857393557, -1.79258551422127], [0.596317175339736, 5.68673078419241], [-0.271252721016033, 7.32728341873475], [-0.6808628743874, 5.89967408590254], [-9.38027454164044, -3.4036477377162], [-0.344382407857561, 3.3280324861601], [0.627857072820525, 10.3467199932142], [-0.944062610864202, -12.7460655947258], [1.71393603203394, -2.35227465200056], [10.8052507875417, -14.8051232583985]], [[-4.36548818499233, 2.86018814321276], [0.802396263427972, -4.27642801326504], [-4.33680546830714, 3.02797059363241], [-5.00212373252489, -2.36178977117091], [-1.3883044439435, 3.63437861954391], [3.70505630384336, -3.51398375028983], [-1.78187550506395, 2.02739333807746], [0.0392571974890757, -11.1626909824657], [-4.89753077884675, -0.470277095884735], [-3.9307700930221, -6.09135503852938], [-0.995414510412513, -6.38655609351536], [1.17974548368095, -3.21347440848617], [-1.33788493972755, -8.40404598969064], [-0.317867169646316, 5.06029267461617], [-0.264103741850978, -7.14586460057651]], [[-5.60397485264853, -2.6942575452523], [0.646072874352751, 3.60968723106002], [2.11324152410883, 6.33052771385365], [5.96208052659781, 1.59931062653295], [-4.73952971717546, -0.604810912061056], [3.4853118745486, -0.640419089962054], [-0.0731761245516349, 6.90367332918177], [-5.58830921669593, 6.32421698066828], [-0.750151651347271, 0.551320033282566], [-10.8660066031569, 5.17539331532555], [-6.92791781753523, 4.41642313654906], [-4.26203752459182, 1.91960494383346], [-4.14533900822424, -6.50037718131178], [6.94068614552965, -1.73536541058313], [-0.733997616864671, -5.83193076536153]], [[3.97477803831005, -3.46703474298577], [6.47584367928656, -6.86760806450773], [-2.50535352364471, 2.84311756960985], [8.90265709269624, -4.19114862518332], [3.14506099731863, -4.44437346746606], [1.81310906801674, 3.94057136922505], [10.1548369243418, -3.85368264317796], [-2.22633190851241, 0.0799175610897428], [-1.53437643130168, 0.552941777559038], [-17.2637668348738, 12.6846218489438], [6.11926748816912, -4.45771179931971], [-1.4487074132818, 1.98528504282056], [-7.64836150316427, 4.05316091198457], [6.67419911848711, -0.819641456816118], [-5.00175499359616, 3.71859197340369]], [[3.28532610022074, -4.65859106103668], [-5.81029249309462, 1.19543357010198], [5.0112161779767, -3.35123293965042], [4.75698500937942, -1.31550162248456], [-0.903712900211402, -8.83101480677855], [0.41683905329028, -3.95038088567858], [10.851992680124, 3.51410833690167], [-0.175661736874749, -4.71359464205482], [11.5579755623555, 0.253455843248789], [0.0533380698749607, 5.26501092850921], [-0.0340272560079482, -2.15167963205398], [3.04631037849313, -2.28731271899881], [-0.494307979600839, -11.3730224791445], [7.04552243726191, 10.5272806589663], [4.04595202902751, -0.539180123159003]], [[4.11930682832859, -3.44085558355071], [3.33555162997972, 3.77425165633862], [6.45391665141161, 2.44466079063875], [-2.42204841442012, -5.34463060996994], [-6.4924507218689, -2.01780741463713], [1.48185107352025, 6.0770515525246], [-0.175562619457624, -9.13186257876967], [-0.117887016508797, -5.53632879140623], [0.0278995672819984, -3.70820454953912], [-1.37164774597976, -6.65010418545519], [4.12857930385955, -3.67543803421638], [-1.67190974770819, 4.43056420323589], [-6.49629333573653, 1.06391463327113], [5.17113733195249, -2.42824096265346], [-0.680935341626644, -8.04310490727211]], [[1.01547395199192, 5.14473513408261], [-5.82365331791246, 6.02151598364893], [-0.0596316048101966, -6.63840995102853], [6.14520217692757, -1.77759160907541], [4.33366577091836, 4.82461542737622], [-4.42183729442026, 2.93857679299932], [3.78742028382435, 4.448203666121], [-2.68550550983268, 7.42213403794134], [1.36332467167781, 1.51516069082659], [5.44672756092847, -0.394710886614144], [0.731233664343788, 8.17719606343898], [6.101028562785, -3.20718739993059], [-1.39043748132486, 3.2300930443042], [5.70179082314703, -6.64952367842032], [1.66365876319422, 6.22041259389043]], [[0.814589128634192, 10.8120528219974], [-1.7442822848284, -4.37639461480913], [7.16107597086285, -0.815268695449732], [0.901005569429779, 8.34481460442726], [0.546152928395695, 10.1449458053999], [3.94756903568368, 4.35974345107182], [0.135520256590936, 4.68700820818909], [-0.562118022117686, -1.99284883848637], [-1.45066614623582, -4.71492289133883], [-0.425969546903877, -0.98074949157535], [1.90556345314497, -8.29609979279925], [5.09519039145706, -2.5977569661898], [-8.1161782860893, 2.00460323958105], [8.32577047160593, -3.5190160909197], [-3.96504395662525, 1.56495926873821]], [[0.149851677594081, 4.58705586485227], [-4.07981303143201, -4.6139115116512], [9.63750354346851, 2.08052388250995], [-0.335441880855272, -8.75010587120176], [-0.0236584873670853, 1.29480979170953], [-0.0731167930507035, 3.52179392174445], [-3.80444122522192, 1.08179607317279], [-6.64198752625927, 3.38053888538107], [-1.30698212972208, -8.08038098176769], [0.311002598631304, 5.95676417949494], [10.4513263798427, -0.122011349561052], [-10.909975438765, -14.2695043117429], [-5.27097905172823, -4.98047145234785], [5.88353196229581, 12.0960619475061], [-0.352108477929579, 0.449411325556956]], [[0.526899059000584, -10.161880691436], [3.58905508675811, -2.42104678425198], [0.0310455636361734, 3.72331672799996], [6.34122223557112, -1.78080710996974], [-2.98249992241444, -2.25842108637112], [3.94902195785799, 1.39414729843668], [-0.208400846206236, -1.35156753826361], [5.94821737927957, -4.28220728334672], [1.97268314735443, 8.20713900311134], [1.08030373644077, 6.1255588611424], [-3.19981186760771, 2.1684193085095], [4.45258826689023, -5.69754271980766], [3.50136962864398, -5.07583867896368], [3.47843196401072, -0.918037006014369], [-0.078763142565633, -5.59472347025998]], [[5.60214346244012, -0.331084853066907], [2.34282577459414, -2.96311999522919], [7.44970500729094, 1.91275087883998], [-0.690663815104792, -2.05638872135556], [8.83185712922257, 4.01514979365333], [-5.61607227001728, -0.471280371532055], [-6.76266020301444, -3.54884802727426], [-2.50140282779733, -3.99370077199238], [-0.327996531480701, 3.18251190952969], [4.17019546115704, 4.45099137824412], [8.6158388243054, 1.59549897132572], [6.97575095362403, 0.19960677838083], [4.95821321326854, 8.72561451438343], [-0.453750288215581, 9.23739066135596], [6.6658582956308, 3.60623984725504]], [[-4.34548177925344, 6.83070907829712], [4.01346437476148, -2.88600218503332], [1.4629037463107, -5.51912458774845], [-2.37553990971096, 5.05404203601534], [-0.304337637790761, 1.31319532383843], [-4.05087743571974, -2.15629195732142], [2.75600720373229, -4.14314170897554], [1.45625616351039, 8.21161447627648], [-5.0337414613078, 7.54406045516861], [-0.0199113022028384, 7.00487992008979], [-0.636280877620584, 8.2047117942568], [12.2589059773236, 2.08149873368088], [7.31174473674086, 1.85133743841955], [-3.54557059151298, -8.18909466466565], [0.548322622804425, 9.98782533950591]], [[1.99491685007495, -0.684634318685941], [-9.94462915320585, 4.93738857428236], [-8.36533933499691, 3.15842725773594], [0.88658469954214, 6.26938951634387], [5.72345443930089, -2.07413977995298], [0.174628004320814, -10.0658403372257], [-4.91517738628448, 4.47978621113926], [-5.15894148652298, -1.51992767956618], [-3.9382480028611, 3.27284336119386], [-7.44231544007402, 5.88130071536048], [1.6841012355034, 4.65135849684865], [0.705239424629945, -5.8821467465597], [7.22713814096791, 3.17112866158733], [-0.514728362036895, -4.23779030070159], [-6.35351621687678, 4.09791488971885]]]
     P_means_w1 = [[0.372399011003459, -0.380841226051439, -0.169850610018946, -0.265885822824427, 1.54512585461185, -0.138328266500502, -0.176508994003896, 0.99666415591375, 0.887447781403253, 0.537763639966063, 1.53576107805992, 0.429656028387789, 1.42016333994945, -0.148369252450953, 0.0747422767429948], [0.0899987863366545, -4.96688456690558, 0.165959548795151, 0.119159550286127, -0.367034259001791, -0.00379429302590138, 0.061481421436449, 0.289858655948572, 15.54605541121, -0.512831490231362, -0.488441069113088, -0.1100705044707, -1.27050072691788, 1.68463131954124, 0.0350535741278387], [0.319596180509784, -1.19969512274467, -0.357230582915514, 0.573390185521219, 0.0070374115447117, 0.294243573595832, 0.458150847486479, 0.223519591908857, 1.95764991334982, 0.0480167208008535, 0.797895167924651, -0.0816661595155315, 2.49433424591584, 0.350198064835573, 0.873193518174541], [1.18894375095808, 0.309853680599488, -3.59228533167858, 1.4074050284276, -0.949803893977592, 0.512845959580715, 0.404906863907885, 0.665349273112809, 0.189251027274752, 3.27588680012008, 6.98903307479288, -3.08693682486352, -1.14171394240988, -3.508313908376, -1.74370859780189], [-0.241653609512473, -1.90598332493372, -0.10065462694331, 1.24573354020626, 1.73897090674692, -2.54047146153152, -0.855226751269759, -3.79614802352416, 0.891821521599805, 0.301171678871424, 0.422672469079897, 1.3773494806797, 3.67907207271276, -5.49959617446436, 0.913035030088412], [-0.454026987717232, -0.36320562530731, 0.53955571057799, -1.24565195459237, 1.95702653750954, 0.0776589909232074, 0.115687111976263, -0.574014986614158, 0.0553943644193673, 0.591951445210806, 0.669553454049678, -0.701469171337394, 0.347654022470878, -1.83036802849087, -0.433266238564541], [2.41523907054469, -1.91677012333824, 0.0727120687889306, 0.121397203651391, 4.82114495951487, 0.0489437742596467, -0.353905935569852, -6.0763250029444, -0.0574334421527685, -0.0945474192389428, -0.0717843030391363, -3.26712438360733, 0.0296625592096907, 1.10259355754216, 1.23369189861331], [-0.129202318776089, 2.11102497858521, -0.366768004616333, 0.154353951668635, -0.587899921843032, 1.91783758511778, -0.332142921839442, 0.122290335792657, -0.446663550613942, 0.637224332437969, -1.71651122931921, -0.0582041724797076, -1.89577353675094, -5.66868717359687, 0.183778282164013], [0.635064136591356, 0.158983191144235, 0.105038533850086, 0.0671940567312789, -0.0729640101772079, 0.0923744991366292, -0.332170964478659, 0.0232335056788856, -0.11107690853884, 0.0166653425401887, -0.0889336186371005, -0.137638352802003, 0.0157455950454832, -0.325892285101415, 1.26527522045414], [1.97727551490491, -1.57437126219254, -3.25064828983346, 0.451684671022357, -0.017415117777218, 1.82973718665417, -0.318302051597342, -0.0376585886804729, 2.22372261911349, 0.184382374832329, 0.0930210730320747, 2.60646570464886, -0.0068576700502573, -0.0345101713501836, -0.0284993036077735], [1.33096185146644, -0.351084319370233, -1.21592699695563, 0.37304406571596, -0.938858597760862, 1.50868172706347, -0.174767496463403, -0.0473990492693269, 0.00587134107852824, -0.34804320656146, 0.683023951745364, -0.724043883565716, 0.267867590885826, -0.360731413756974, -0.458044422311387], [0.0838551618720492, -0.265483773190274, -2.53624761683692, 1.23062686424446, 0.0484109616829271, -0.0788928113572297, -1.05316240819624, -0.418497059789333, -0.998677149158348, -0.133282326099208, 1.13915619334696, 4.86367439161035, 1.86578748029696, 2.69657521639349, -0.383873144424015], [-0.245236752284284, -3.35075588957737, -1.237757610567, -0.0629403452970223, -0.491185846518303, 1.79943698929221, -0.281335920381472, -0.441989171140918, 0.533817000436523, 0.0778458588765263, 0.855145631340109, 4.44267066070906, -1.79396520112178, -2.59412351382067, 0.903766678729322], [-0.0243489495170063, -0.827922569538629, 0.597918144192441, 0.89867252594807, 1.74524649087031, 0.350971773379211, -0.579112676576417, 0.582233861166562, -1.095391303819, 0.667196429462937, -1.54693227271139, -0.246463966874418, 0.0913692293752672, -0.0722784909134155, 2.08763398623111], [-1.20712913572845, 1.68063673808871, 1.80999522090668, 0.0885716968797607, 1.82978120664791, 0.871690106763132, -0.819725932693016, -0.381541196796567, -1.42986766049908, 2.80965176125491, -1.29777781664899, -2.38774865107147, -2.31362850051405, -1.34314258305175, 1.07350670326333], [0.160849745322597, -4.46848685037515, 0.0855164044703447, 0.334907942345396, -0.171303793404876, -4.50133509114861, -0.0460024350926886, -3.70130647505298, -15.3642072503802, 3.7914914191356, -7.10335830122294, 4.46674333460994, -8.50209382933885, 0.734005959801731, 7.32149516675953], [-0.117061898017075, -0.143111831679293, -0.969972236709818, 0.800401159652164, 0.0551967481640128, 0.549044389215383, -0.144889527201125, 0.25636336985559, -0.621223596831485, 0.0740534775710212, -0.141723426646993, -0.126534756814985, -0.264869338503351, 0.92430335772275, -1.17958588683235], [0.053644913480171, 1.41557880339133, -0.725957072431802, -0.0736612204327489, 1.01297553868208, -0.405500937478471, -1.28250017793961, 0.165984516128524, 2.80490336261883, 3.10706250784185, 1.43101491204931, -0.0116180224211951, 0.226747977400081, -0.0975884865915458, -0.0801303321565709], [1.2413978412077, 4.48697188334875, 1.8081570247427, -1.8266330594158, 0.645410097609992, -0.107905730139614, -1.90288340554068, 0.431930962958151, 0.10125853265663, -0.0345854455786395, -1.64077299861336, 0.253439203708317, -1.46770034270624, -2.9195114279883, 0.178831555698879], [-0.629987302423367, -1.75602968539445, 1.20080176316926, 0.67540160808031, 0.327569269347936, 0.874264072395367, -0.619083485883262, 0.0262310950477519, -0.260028153713149, -0.12229619943264, 1.40750732593112, -2.52022822035358, 1.89695545361981, -0.131259389885003, -0.141203541041912], [-0.224709045079778, 0.158323158738668, 10.6856752522459, -2.24550700073842, -3.81213556328891, 0.0467527281207697, -0.113719125560875, -22.5355429040269, -1.99946211008555, 11.0050420203231, 23.9131345558738, 0.046419549601966, -0.653928919489517, 0.149023614377928, -6.39018586503563], [1.78313670360025, -0.188851577709581, -0.115666085010877, 0.449206280194443, 2.20815905203194, 0.0366014407429679, -0.00775426435451113, -0.235143366836064, 0.0278678799090425, -1.01685105032241, -1.23201311037359, 0.00821459587432805, 0.0788988795917251, -0.119244507456444, 1.13819615229612], [0.550423339439544, -0.149624870201445, 2.15012115219756, 0.596703864961283, -1.41227897124244, -0.462155347921081, -1.5820202071701, -0.033980437625904, 0.0335855255532728, -0.0787239485948596, -0.0424438914953706, -0.609930916949423, -0.777502118635219, -0.492430827006613, -1.53490077602201], [1.41496300889613, -2.16413387175545, 0.588465531901926, 0.0886553412630957, 1.30735995094362, 0.0735868345339337, -2.89969835790386, 0.404448973696758, 0.39321419479999, -5.21470883262252, 2.34402395093326, -1.98479524586514, 2.48736780760902, 1.93355643724388, -0.174517089426469], [1.37148618146506, 2.0460403945773, 0.593732103056974, 0.531323780110067, 0.38340564631156, 1.43680206504634, 1.22979535045897, 0.0424205516308033, -0.873457694482035, 0.462556051522105, -1.06545541900085, 0.56890013925607, 2.66586431662583, 0.443404014934943, 0.398048735503651], [-4.95774307825982, -3.45760040100445, 0.217556923226083, -1.11129632114282, 3.66912178175521, -0.100496017808541, -0.427680311901572, 0.77378958752863, -2.27323928110252, 0.623623496523751, -0.25510170774541, -0.393395207006235, 1.53323691868023, 0.312439356534637, 2.62007967855268], [-3.22268953201907, -0.304698352055477, -1.23442099682305, -0.347312212861092, 0.42910867322719, -0.111971424455236, -0.54869838206848, 1.53612868676373, 0.65698600190993, 0.23031738913046, 2.13043194353541, -0.0799900438794828, -0.481627808825365, 2.02367660230446, 0.195676709518402], [0.273576847700446, 0.407048733605289, -2.58810686610757, -0.651804905930802, -0.573381515935664, 0.0593281030270886, 0.22344077252483, 0.399443449093355, 0.94104380819392, -4.77039751566523, -0.399886595232699, 0.980777705999675, 0.499354136042198, 0.0151630274407032, 0.268695135095675], [2.27279336276946, 1.29746154641556, -0.531891714014034, 0.463894097717825, -0.469886811632467, -0.20823590906475, -0.258718301102346, -1.38494095892501, 1.19188769470814, -1.68971025249159, 0.488720136696635, -2.21909797021801, 1.66844786030372, 0.899915414439783, -1.85356205298487], [-0.138591207333001, -0.355009300014976, 0.0480736592206581, 0.0583606670295673, -0.0354687643174645, -0.242324271560956, 0.0297414705319449, -0.304707335420338, 3.09799325530105, 0.274318559743734, 0.831466653777506, 0.00261203650921754, -0.117190491804334, 0.0370861261092868, 0.125676227812916], [0.597306690664033, 0.639476181299512, -0.790399557164829, 0.424595271614824, 1.02458638075783, 0.0288164218658192, 1.42404367689138, 0.625129214960775, -0.394651011094807, -0.134219214780409, -3.58819419032232, -4.17153561929449, 0.192068222480193, -2.17442070932253, -0.970737141114007], [1.33434091274466, -0.464120341376713, -0.121199193275614, -0.189543987016976, -0.393295086105459, -0.128959918776802, 0.145089049558579, 0.063340630605154, 0.867966985004465, -0.130340407083242, 0.437391111930782, -0.584795959742759, -0.706276724689891, -2.40188690923143, 0.551409819697807], [1.25670682829546, -0.0577084290879527, -2.69801187742266, 1.30797361546131, -1.96289421011109, 0.015171803030064, -2.27102121748943, 3.00657235354194, -4.21940155991808, 4.03700726617845, -2.65606991128009, -2.06945377324828, -1.01552919733932, 0.23550810193533, 4.95138513798385], [-1.2000166783756, 0.991930326943791, -0.340287954222558, 0.979182386838257, -0.128168961392253, -0.213785963151871, -0.838867931337872, 0.504657053541422, 0.0345830270386675, -0.313394291382138, -0.00436061223986048, 0.334917752016808, 0.995568936665352, -1.01122329428778, 1.71264399800125], [2.13692082058294, 1.25589281700955, -1.61121640563621, -0.120062690734999, -0.0420261123000976, 3.17407151856313, 0.938400717103668, 1.519526258144, 0.232401645179308, -0.0595797357049891, 0.172911966591827, 3.58840296656951, -2.10520844249652, -2.38535637226505, -1.8010694203978], [-1.11505326540256, -1.48182037394272, 0.47229419532828, -2.21179069655497, -2.69985278848124, 0.0535397667714984, 2.1544166360612, -0.483747202963702, 3.22075308622899, 5.16588843086155, 8.45983934242155, -0.578081467006761, -0.36596196766969, 9.3874045885187, 3.02804288223334], [-0.0781378445437492, -0.0305601184999616, -0.416768184063611, 0.332563592098806, 1.1414794785342, -0.0962456449444815, -1.79949105559141, -0.322866254910188, -1.27784103347961, -0.0452657018056698, 0.206378730607966, 0.137662265473036, 0.470518255051657, -1.48334773293057, 0.177677667077459], [-0.129056402974527, -0.22863513500746, 0.155171780371314, 0.728139515145053, -0.852496517631991, 0.074641170598444, -0.331031582613605, 1.05041122014858, 0.128029324701803, 0.345094664975519, -0.57350664000969, -0.718726622074344, -2.13867857683134, 0.381287275868652, 1.44881386945471], [1.70948366375691, 1.78805423416601, -0.14529003353914, 0.0637974622937011, 0.676689187686625, -0.599516519299206, -0.215640756987763, -0.10268051865594, -1.09974589198613, 0.0336903815673206, -0.908147331904446, 0.103040217890273, 1.30621860614022, -0.738370273987544, 0.283953824317413], [1.15748862555589, -0.138176799349284, -2.68780768106229, -0.404123062448773, 0.406661657456011, 0.205402853767024, 0.00871912834479191, 0.104330971634358, 0.397483678973312, -1.19961547976191, 1.58636574622616, -0.37522416154251, -1.47576853560026, -1.70983667535413, 0.590345140807983], [-2.01782658804932, -0.144754422967409, 0.45022561422291, 2.65901897341523, -4.5581707918178, 0.0451120949981467, -1.38606236211541, -2.48944742355937, 1.33389755582873, 0.0184378513939337, -3.53986468415705, -1.5087268756891, 0.497161630639128, -2.03298034523778, 0.00631810732375796], [-0.483845098996463, 1.08886040280643, 0.0111379857114012, -0.0519311650856554, 0.100502104516558, 0.0104930801191925, -0.351538836769423, -0.32262932881889, -0.0811205550815787, 0.422601273922355, -2.46431006779759, 0.82666324595774, 1.71305583395233, 1.28421708885435, 1.27408555038881], [0.122683241198832, 1.16279911592364, -0.537504250315819, 0.196400138069008, -0.237353116606913, -0.430400613935497, 0.445029649948052, 0.129078563853177, -2.32600549526883, -0.0130773089793033, -0.0267564216915409, -0.554183959530969, -0.348923798872751, -0.200143446108171, 2.69418226062285], [1.84494783123169, -1.35597238063863, 0.3234811028748, -1.80065557032287, 0.412557274496742, 0.495860957603667, 0.0749847267417007, -1.06519836516255, 1.68219529375254, 0.0504800826036807, -0.0571351101323491, -1.43180337244869, 0.158242406475216, 0.310023684409426, 0.674577703539426], [1.86037151487159, 2.04141120320303, 2.62719262108374, 0.0187040996655547, -0.492464095459396, 4.8308141110178, 0.0208609581058438, -2.3455160887463, 0.0301643578679136, 0.851892281539336, 3.96623606955291, -0.992050084699185, -0.383248407383156, 0.108624104014539, 0.247118745010555], [0.433615243449125, 0.192126843513096, 0.862972654408191, -0.614993696648274, 0.905373798921515, -0.641952455180553, -0.540253094469108, -1.18868457061475, 1.61259114699609, -0.513217406383316, 0.0680517551907535, -1.14272728881705, -0.0796731543334723, 0.0609841733355026, 2.16115650979486], [-1.56250473088646, -0.194892410474993, -0.980284892874791, 0.0515158569322999, 0.118574991534749, -0.0801872213742801, 0.538622885050829, 0.25152557650004, -1.98085785353556, 0.280016173211874, 1.27000250826822, 0.447877308584609, -0.579689737512858, 0.167806116441927, 0.832357525180536], [-1.40377321855383, 0.392884301551263, 0.011637015924242, 1.71903439444597, 0.503606666721959, -0.131160223336426, -1.39690533371169, 4.07858552461793, 0.734145819508058, -5.98003511725514, -0.187523803526708, 0.131922054233685, 0.0586422592903366, -0.00786820990285834, 1.20020701558529], [0.336842377234055, 1.2900644429671, 0.198877258333691, 0.925098816713211, -8.13340308100481, 4.66830830031924, -0.101974558700355, -0.0461935438238725, -0.351979608985714, 0.598030289999649, 0.101801080007468, -0.100566390254562, -2.36042538302201, 0.233259346029881, -4.79889344638416], [0.369585575105322, 0.477026772946599, -1.1702238596999, 0.0692338052861822, 0.826796721762833, -0.143981018341739, -3.24010213752326, 0.0925895763410543, 1.00699453604938, -0.650515184238689, -0.270468376105301, -0.0953485822335998, -0.128319707828166, 0.440720140075935, 1.48378572771127], [0.0250671035513026, 0.472297896354741, 0.0735812910872277, -0.80280605385929, 0.0410461454650797, 0.126608195607704, 0.127786806529974, -0.726645271025193, -0.144906249349739, -0.0363539283111663, 0.0473082672577844, -0.226371755293156, 0.267471202755877, -0.924338630120569, 0.306170698706899], [-2.66699562042236, 0.0431132478829544, -0.218866987882564, -0.188166964203149, -2.56817989368191, 0.0359424571917974, 0.0348131542348356, 0.225748793962814, 0.0334520860479361, 0.809863211157882, 0.416833272087284, 0.00274293791334046, -0.390279820957139, -0.760957506065617, 0.069914170317823], [1.58409168722825, -1.28184818277845, 2.17016152069473, -1.5362853932786, 1.44729379254167, -0.354126000897028, -0.186624820457447, 0.0202888996122738, -0.453435641700378, 0.175506583594804, -1.00166910147765, 2.0741943094536, 0.104473110474966, -2.83866285027449, 0.177261312527634]]
@@ -337,4 +503,6 @@ class Simulator:
     nn_out = theano.function([features,centering,scaling,weights_0,offset_0,weights_1,offset_1,uncenter,unscale], (scaled_out+1)/2*unscale+uncenter)
 
 
-
+if __name__ == '__main__':
+    s = Simulator()
+    print s.getV()
