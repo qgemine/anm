@@ -23,39 +23,44 @@ class Simulator:
 
         # Load the test case
         case = case75()
-        buses = case["bus"]
-        branches = case["branch"]
-        devices = case["gen"]
+        self.buses = case["bus"]
+        self.branches = case["branch"]
+        self.devices = case["gen"]
+        self.services = case["flex"]
         self.baseMVA = case["baseMVA"]
         # Dictionary of parameters that require a call to a user-defined function to update their value at each transition.
         self.callables = dict()
 
         # Number of buses of the network.
-        self.N_buses = buses.shape[0]
+        self.N_buses = self.buses.shape[0]
         # Number of links in the network.
-        self.N_branches = branches.shape[0]
+        self.N_branches = self.branches.shape[0]
         # 0-based indices of the loads and generators within the list of devices.
-        loads = (devices[:,1]<0.0).nonzero()[0].tolist()
-        gens = (devices[:,1]>0.0).nonzero()[0].tolist()
+        loads = (self.devices[:,1]<0.0).nonzero()[0].tolist()
+        gens = (self.devices[:,1]>0.0).nonzero()[0].tolist()
         # Number of loads.
         self.N_loads = len(loads)
         # Number of generators.
         self.N_gens = len(gens)
-        # Q-P ratio of loads and genetators.
-        self.qp = devices[loads+gens,2]/devices[loads+gens,1]
+        # Q-P ratio of loads and generators.
+        self.qp = self.devices[loads+gens,2]/self.devices[loads+gens,1]
         # Bounds of voltage magnitude at buses.
-        self.Vmin = asarray(buses[1::,12])
-        self.Vmax = asarray(buses[1::,11])
+        self.Vmin = asarray(self.buses[1::,12])
+        self.Vmax = asarray(self.buses[1::,11])
 
         # The IDs of buses are edited to be an increasing list of integers (1,2,3,...,N_buses)
         bus_idx = dict()
         for i in range(self.N_buses):
-            bus_idx[int(buses[i,0])] = i+1
-            buses[i,0] = i+1
+            bus_idx[int(self.buses[i,0])] = i+1
+            self.buses[i,0] = i+1
+
+        # Update the bus ids in the array of the devices
+        for i in range(self.devices.shape[0]):
+            self.devices[i,0] = bus_idx[self.devices[i,0]]
 
         # Check the correctness of the slack bus specifications and get its voltage magnitude.
-        if buses[0,1] == 3:
-            PV_dev = [dev for dev in range(devices.shape[0]) if dev not in (loads+gens)]
+        if self.buses[0,1] == 3:
+            PV_dev = [dev for dev in range(self.devices.shape[0]) if dev not in (loads+gens)]
             if len(PV_dev) > 1:
                 raise NotImplementedError("A single PV device is supported at the moment (at the slack).")
             if len(PV_dev) < 1:
@@ -63,9 +68,9 @@ class Simulator:
             PV_id = PV_dev[0]
             if PV_id != 0:
                 raise ValueError("The PV device at the slack bus must be specified as the first device in the input file.")
-            if bus_idx[int(devices[PV_id,0])] != 1:
+            if int(self.devices[PV_id,0]) != 1:
                 raise ValueError("The test system must have a single PV device, connected at the slack bus.")
-            self.V_slack = devices[PV_id,5]
+            self.V_slack = self.devices[PV_id,5]
             if (self.V_slack < 0.5) or (self.V_slack > 1.5):
                 print "Warning: voltage magnitude ("+str(self.V_slack)+") at the slack bus does not seem coherent."
         else:
@@ -78,18 +83,18 @@ class Simulator:
         d2b_rows = []
         for load in loads:
             d2b_cols += [load-1]
-            d2b_rows += [bus_idx[int(devices[load,0])]-2]
+            d2b_rows += [int(self.devices[load,0])-2]
         for gen in gens:
             d2b_cols += [gen-1]
-            d2b_rows += [bus_idx[int(devices[gen,0])]-2]
+            d2b_rows += [int(self.devices[gen,0])-2]
         d2b_data = array([1]*(self.N_loads+self.N_gens))
         self.dev2bus = sparse.coo_matrix((d2b_data, (d2b_rows, d2b_cols)),
                                               shape=(self.N_buses-1, self.N_loads+self.N_gens)).toarray()
 
         # Update bus indices in branch specifications to match the new indexing (1,...,N_buses)
-        for i in range(branches.shape[0]):
-            branches[i,0] = bus_idx[branches[i,0]]
-            branches[i,1] = bus_idx[branches[i,1]]
+        for i in range(self.branches.shape[0]):
+            self.branches[i,0] = bus_idx[self.branches[i,0]]
+            self.branches[i,1] = bus_idx[self.branches[i,1]]
         # Build the nodal admittance matrix from the branch specifications.
         self.Y_bus = zeros((self.N_buses,self.N_buses), dtype=complex)
         self.g_ij = empty((self.N_branches,))
@@ -97,21 +102,21 @@ class Simulator:
         self.ratings = empty((self.N_branches,))
         self.links = []
         for i in range(self.N_buses):
-            self.Y_bus[i,i] = (buses[i,4]+1.0*buses[i,5])/self.baseMVA
+            self.Y_bus[i,i] = (self.buses[i,4]+1.0*self.buses[i,5])/self.baseMVA
         for i in range(self.N_branches):
-            k = int(branches[i,0]-1) # from bus, 0-based id
-            m = int(branches[i,1]-1) # to bus, 0-based id
-            r = branches[i,2]
-            x = branches[i,3]
-            b = branches[i,4]
-            tap = branches[i,8] if branches[i,8] > 0.0 else 1.0
-            shift = branches[i,9]
+            k = int(self.branches[i,0]-1) # from bus, 0-based id
+            m = int(self.branches[i,1]-1) # to bus, 0-based id
+            r = self.branches[i,2]
+            x = self.branches[i,3]
+            b = self.branches[i,4]
+            tap = self.branches[i,8] if self.branches[i,8] > 0.0 else 1.0
+            shift = self.branches[i,9]
             y_line = 1.0/(r+1.0j*x)
             y_shunt = 0.5j*b
             self.links += [[k,m]]
             self.g_ij[i] = y_line.real
             self.b_ij[i] = y_line.imag
-            self.ratings[i] = branches[i,5]
+            self.ratings[i] = self.branches[i,5]
             self.Y_bus[k,k] += (y_line + y_shunt) / (tap**2)
             self.Y_bus[m,m] += (y_line + y_shunt)
             self.Y_bus[k,m] = -y_line/tap * exp(-1.0j*shift)
@@ -136,11 +141,11 @@ class Simulator:
         self.flexT = []
         self.flexPrice = []
         self.flexIdInLoads = []
-        flexLoads = [flex[1::] for flex in case["flex"] if int(flex[0])==1]
+        flexLoads = [flex[1::] for flex in self.services if int(flex[0])==1]
         for loadID, price, signal in flexLoads:
             try:
-                id = (asarray(loads)==int(loadID)).nonzero()[0][0]
-            except IndexError:
+                id = loads.index(int(loadID))
+            except ValueError:
                 raise ValueError("A flexible service is attached to a non-existing load.")
             self.flexIdInLoads += [id]
             self.flexSignals += [signal]
@@ -156,11 +161,11 @@ class Simulator:
         # Load curtailment services from input.
         self.curtPrice = []
         self.curtIdInGens = []
-        curtGens = [curt[1::] for curt in case["flex"] if int(curt[0])==2]
+        curtGens = [curt[1::] for curt in self.services if int(curt[0])==2]
         for genID, price in curtGens:
             try:
-                id = (asarray(gens)==int(genID)).nonzero()[0][0]
-            except IndexError:
+                id = gens.index(int(genID))
+            except ValueError:
                 raise ValueError("A curtailment service is attached to a non-existing generator.")
             self.curtIdInGens += [id]
             if callable(price):
@@ -432,7 +437,7 @@ class Simulator:
         Qbus = self.dev2bus.dot(P_devices*self.qp)
         
         # Solve power flow equations
-        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1e-4}).x
+        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1.0e-5}).x
         V_sol = x[0:self.N_buses]+1j*x[self.N_buses:]
         
         # Get the solution

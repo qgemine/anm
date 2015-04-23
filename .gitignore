@@ -12,3 +12,21 @@
 .idea/scopes/scope_settings.xml
 
 .idea/vcs.xml
+
+clusterlib/
+
+.idea/dictionaries/Quentin.xml
+
+bonmin.opt
+
+minlp_policy.py
+
+simulate.py
+
+minlp_policy.py
+
+deterministic_policy.py
+
+minlp_policy.py
+
+launcher.py
