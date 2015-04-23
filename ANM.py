@@ -437,7 +437,7 @@ class Simulator:
         Qbus = self.dev2bus.dot(P_devices*self.qp)
         
         # Solve power flow equations
-        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1.0e-5}).x
+        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1.0e-4}).x
         V_sol = x[0:self.N_buses]+1j*x[self.N_buses:]
         
         # Get the solution
