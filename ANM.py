@@ -209,7 +209,7 @@ class Simulator:
         #   curtailment per MWh for period t+TIMESTEPS that belongs to
         #   {1,...,96} and for GEN that belongs to {0,...,N_gens-1}.
         try:
-            if self.curtPrice[gen] is None:
+            if self.curtPrice[self.curtIdInGens.index(gen)] is None:
                 return self.callables[("curtPrice",self.curtIdInGens.index(gen))](self.getQuarter(), self.getQuarter(timesteps))
             else:
                 return self.curtPrice[self.curtIdInGens.index(gen)]
@@ -322,7 +322,7 @@ class Simulator:
             self.comp_elec_state()
 
         # Compute last transition's operational costs
-        curt_cost = sum([self.getCurtPrice(gen)*(self.getPGen(gen)-self.getPCurtGen(gen))/4.0 for gen in range(self.N_gens)])
+        curt_cost = sum([self.getCurtPrice(gen)*(self.getPGen(gen)-self.getPCurtGen(gen))/4.0 for gen in self.curtIdInGens])
         flex_cost = sum([self.getFlexCost(load)*activated for load, activated in zip(self.flexIdInLoads, self.last_flex_act.tolist())])
         return curt_cost + flex_cost
 
