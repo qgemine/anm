@@ -7,29 +7,31 @@ from scipy.stats import multivariate_normal
 class WindSampler(object):
     def __init__(self):
         self.past = []
+        ##
+        self.pi = self._trans_weights.tolist()
+        self.mu_a = [np.atleast_1d(self._trans_means[k,-1]) for k in range(self.mixt_size)]
+        self.mu_b = [np.atleast_1d(self._trans_means[k,:-1:]) for k in range(self.mixt_size)]
+        ##
+        sig = [self._trans_covars[k,::,::] for k in range(self.mixt_size)]
+        sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
+        self.mvns = [multivariate_normal(mean=m_b,cov=s_bb) for (m_b,s_bb) in zip(self.mu_b,sig_bb)]
+        ##
+        lamb = [np.linalg.inv(self._trans_covars[k,::,::]) for k in range(self.mixt_size)]
+        lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
+        lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
+        self.cond_mu_prec = [np.linalg.inv(l_aa).dot(l_ab) for (l_aa,l_ab) in zip(lamb_aa,lamb_ab)]
+        self.cond_sigsqrt = [np.sqrt(np.linalg.inv(l_aa)) for l_aa in lamb_aa]
+
     def __call__(self, rng, *_):
         if self.past:
             if self.stds[self._t%self.T] > 0.:
-                step = (self._t % self.T) if self.time_specific else 0
-                pi = self._trans_weights[0].tolist()
-                mu_a = [np.atleast_1d(self._trans_means[step][k,-1]) for k in range(self.mixt_size)]
-                mu_b = [np.atleast_1d(self._trans_means[step][k,:-1:]) for k in range(self.mixt_size)]
-                sig = [self._trans_covars[step][k,::,::] for k in range(self.mixt_size)]
-                lamb = [np.linalg.inv(self._trans_covars[step][k,::,::]) for k in range(self.mixt_size)]
-                sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
-                lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
-                lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
                 x_b = np.array(self.past)
-                pi_k = [p*multivariate_normal.pdf(x_b,mean=m_b, cov=s_bb) for (p,m_b,s_bb) in zip(pi,mu_b,sig_bb)]
-                cond_pi = [p_k/sum(pi_k)
-                           for p_k in pi_k]
-                cond_mu = [m_a - np.linalg.inv(l_aa).dot(l_ab).dot(x_b-m_b)
-                           for (m_a,l_aa,l_ab,m_b) in zip(mu_a,lamb_aa,lamb_ab,mu_b)]
-                cond_sig = [np.linalg.inv(l_aa) for l_aa in lamb_aa]
-
+                pi_k = [p*mvn.pdf(x_b) for (p,mvn) in zip(self.pi,self.mvns)]
+                cond_pi = [p_k/sum(pi_k) for p_k in pi_k]
+                cond_mu = [m_a - prec.dot(x_b-m_b) for (m_a,prec,m_b) in zip(self.mu_a,self.cond_mu_prec,self.mu_b)]
                 cum_cond_pi = np.array([sum(cond_pi[:k:]) for k in range(self.mixt_size)])
                 rand_k = (cum_cond_pi < rng.rand()).nonzero()[0][-1]
-                x_a = np.sqrt(cond_sig[rand_k])*rng.randn()+cond_mu[rand_k]
+                x_a = self.cond_sigsqrt[rand_k]*rng.randn()+cond_mu[rand_k]
 
                 self.past = self.past[1::] + [x_a[0,0]]
                 self._t = (self._t+1) % self.T
@@ -48,13 +50,12 @@ class WindSampler(object):
                            [ 0.98523045,  0.99800488]]])
     _init_means = array([[-0.00123777, -0.00145859]])
     _init_weights = array([ 1.])
-    _trans_covars = [array([[[ 0.9980685 ,  0.98523045,  0.96653212],
-                             [ 0.98523045,  0.99800488,  0.98517984],
-                             [ 0.96653212,  0.98517984,  0.99827648]]])]
-    _trans_means = [array([[-0.00123777, -0.00145859, -0.00184985]])]
-    _trans_weights = [array([ 1.])]
+    _trans_covars = array([[[ 0.9980685 ,  0.98523045,  0.96653212],
+                            [ 0.98523045,  0.99800488,  0.98517984],
+                            [ 0.96653212,  0.98517984,  0.99827648]]])
+    _trans_means = array([[-0.00123777, -0.00145859, -0.00184985]])
+    _trans_weights = array([ 1.])
     _lb = 0.0
-    time_specific = False
     stds = array([ 3.43609542])
     means = array([ 8.34519607])
     mixt_size = 1
@@ -64,29 +65,31 @@ class WindSampler(object):
 class SunSampler(object):
     def __init__(self):
         self.past = []
+        ##
+        self.pi = self._trans_weights.tolist()
+        self.mu_a = [np.atleast_1d(self._trans_means[k,-1]) for k in range(self.mixt_size)]
+        self.mu_b = [np.atleast_1d(self._trans_means[k,:-1:]) for k in range(self.mixt_size)]
+        ##
+        sig = [self._trans_covars[k,::,::] for k in range(self.mixt_size)]
+        sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
+        self.mvns = [multivariate_normal(mean=m_b,cov=s_bb) for (m_b,s_bb) in zip(self.mu_b,sig_bb)]
+        ##
+        lamb = [np.linalg.inv(self._trans_covars[k,::,::]) for k in range(self.mixt_size)]
+        lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
+        lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
+        self.cond_mu_prec = [np.linalg.inv(l_aa).dot(l_ab) for (l_aa,l_ab) in zip(lamb_aa,lamb_ab)]
+        self.cond_sigsqrt = [np.sqrt(np.linalg.inv(l_aa)) for l_aa in lamb_aa]
+
     def __call__(self, rng, *_):
         if self.past:
             if self.stds[self._t%self.T] > 0.:
-                step = (self._t % self.T) if self.time_specific else 0
-                pi = self._trans_weights[0].tolist()
-                mu_a = [np.atleast_1d(self._trans_means[step][k,-1]) for k in range(self.mixt_size)]
-                mu_b = [np.atleast_1d(self._trans_means[step][k,:-1:]) for k in range(self.mixt_size)]
-                sig = [self._trans_covars[step][k,::,::] for k in range(self.mixt_size)]
-                lamb = [np.linalg.inv(self._trans_covars[step][k,::,::]) for k in range(self.mixt_size)]
-                sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
-                lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
-                lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
                 x_b = np.array(self.past)
-                pi_k = [p*multivariate_normal.pdf(x_b,mean=m_b, cov=s_bb) for (p,m_b,s_bb) in zip(pi,mu_b,sig_bb)]
-                cond_pi = [p_k/sum(pi_k)
-                           for p_k in pi_k]
-                cond_mu = [m_a - np.linalg.inv(l_aa).dot(l_ab).dot(x_b-m_b)
-                           for (m_a,l_aa,l_ab,m_b) in zip(mu_a,lamb_aa,lamb_ab,mu_b)]
-                cond_sig = [np.linalg.inv(l_aa) for l_aa in lamb_aa]
-
+                pi_k = [p*mvn.pdf(x_b) for (p,mvn) in zip(self.pi,self.mvns)]
+                cond_pi = [p_k/sum(pi_k) for p_k in pi_k]
+                cond_mu = [m_a - prec.dot(x_b-m_b) for (m_a,prec,m_b) in zip(self.mu_a,self.cond_mu_prec,self.mu_b)]
                 cum_cond_pi = np.array([sum(cond_pi[:k:]) for k in range(self.mixt_size)])
                 rand_k = (cum_cond_pi < rng.rand()).nonzero()[0][-1]
-                x_a = np.sqrt(cond_sig[rand_k])*rng.randn()+cond_mu[rand_k]
+                x_a = self.cond_sigsqrt[rand_k]*rng.randn()+cond_mu[rand_k]
 
                 self.past = self.past[1::] + [x_a[0,0]]
                 self._t = (self._t+1) % self.T
@@ -99,7 +102,6 @@ class SunSampler(object):
             self.past = rng.multivariate_normal(self._init_means[norm_id],self._init_covars[norm_id]).tolist()
 
         self.past[-1] = max(self.past[-1], (self._lb-self.means[self._t])/np.abs(self.stds[self._t]))
-        self.past[-1] = min(self.past[-1], (750-self.means[self._t])/np.abs(self.stds[self._t]))
         return self.past[-1]*np.abs(self.stds[self._t])+self.means[self._t]
 
     _init_covars = array([[[ 0.001]],
@@ -125,7 +127,7 @@ class SunSampler(object):
                          [ 0.]])
 
     _init_weights = array([ 0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1,  0.1])
-    _trans_covars = [array([[[  5.29100468e-02,   4.66281365e-02],
+    _trans_covars = array([[[  5.29100468e-02,   4.66281365e-02],
                              [  4.66281365e-02,   5.10545396e-02]],
                             [[  1.53924113e-01,   6.06826425e-02],
                              [  6.06826425e-02,   1.59291273e-01]],
@@ -144,9 +146,9 @@ class SunSampler(object):
                             [[  3.65252610e-01,  -3.54050591e-03],
                              [ -3.54050591e-03,   3.60036422e-01]],
                             [[  3.18999281e-01,   1.15548249e-01],
-                             [  1.15548249e-01,   4.24810209e-01]]])]
+                             [  1.15548249e-01,   4.24810209e-01]]])
 
-    _trans_means = [array([[ 1.1610894 ,  1.16153612],
+    _trans_means = array([[ 1.1610894 ,  1.16153612],
                            [-0.42594343, -0.40580988],
                            [-0.06575965,  9.59209203],
                            [-0.8371022 , -0.83968888],
@@ -155,12 +157,11 @@ class SunSampler(object):
                            [ 8.86093406,  3.75985555],
                            [-0.03663205, -0.06823992],
                            [ 0.32295457,  0.43470875],
-                           [ 0.55791714,  0.44760842]])]
+                           [ 0.55791714,  0.44760842]])
 
-    _trans_weights = [array([ 0.10494789,  0.10373561,  0.00184417,  0.30592703,  0.09581995,
-        0.01680253,  0.00153294,  0.24149121,  0.06735853,  0.06054015])]
+    _trans_weights = array([ 0.10494789,  0.10373561,  0.00184417,  0.30592703,  0.09581995,
+        0.01680253,  0.00153294,  0.24149121,  0.06735853,  0.06054015])
     _lb = 0.0
-    time_specific = False
     stds = array([  -1.00000000e+00, -1.00000000e+00,  -1.00000000e+00,
                     -1.00000000e+00, -1.00000000e+00,  -1.00000000e+00,
                     -1.00000000e+00, -1.00000000e+00,  -1.00000000e+00,
@@ -235,29 +236,31 @@ class LoadSampler(object):
     def __init__(self, scaling_factor=1.0):
         self.past = []
         self.scale = scaling_factor
+        ##
+        self.pi = self._trans_weights.tolist()
+        self.mu_a = [np.atleast_1d(self._trans_means[k,-1]) for k in range(self.mixt_size)]
+        self.mu_b = [np.atleast_1d(self._trans_means[k,:-1:]) for k in range(self.mixt_size)]
+        ##
+        sig = [self._trans_covars[k,::,::] for k in range(self.mixt_size)]
+        sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
+        self.mvns = [multivariate_normal(mean=m_b,cov=s_bb) for (m_b,s_bb) in zip(self.mu_b,sig_bb)]
+        ##
+        lamb = [np.linalg.inv(self._trans_covars[k,::,::]) for k in range(self.mixt_size)]
+        lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
+        lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
+        self.cond_mu_prec = [np.linalg.inv(l_aa).dot(l_ab) for (l_aa,l_ab) in zip(lamb_aa,lamb_ab)]
+        self.cond_sigsqrt = [np.sqrt(np.linalg.inv(l_aa)) for l_aa in lamb_aa]
+
     def __call__(self, rng, *_):
         if self.past:
             if self.stds[self._t%self.T] > 0.:
-                step = (self._t % self.T) if self.time_specific else 0
-                pi = self._trans_weights[0].tolist()
-                mu_a = [np.atleast_1d(self._trans_means[step][k,-1]) for k in range(self.mixt_size)]
-                mu_b = [np.atleast_1d(self._trans_means[step][k,:-1:]) for k in range(self.mixt_size)]
-                sig = [self._trans_covars[step][k,::,::] for k in range(self.mixt_size)]
-                lamb = [np.linalg.inv(self._trans_covars[step][k,::,::]) for k in range(self.mixt_size)]
-                sig_bb = [np.atleast_2d(s[:-1:,:-1:]) for s in sig]
-                lamb_aa = [np.atleast_2d(l[-1,-1]) for l in lamb]
-                lamb_ab = [np.atleast_2d(l[-1,:-1:]) for l in lamb]
                 x_b = np.array(self.past)
-                pi_k = [p*multivariate_normal.pdf(x_b,mean=m_b, cov=s_bb) for (p,m_b,s_bb) in zip(pi,mu_b,sig_bb)]
-                cond_pi = [p_k/sum(pi_k)
-                           for p_k in pi_k]
-                cond_mu = [m_a - np.linalg.inv(l_aa).dot(l_ab).dot(x_b-m_b)
-                           for (m_a,l_aa,l_ab,m_b) in zip(mu_a,lamb_aa,lamb_ab,mu_b)]
-                cond_sig = [np.linalg.inv(l_aa) for l_aa in lamb_aa]
-
+                pi_k = [p*mvn.pdf(x_b) for (p,mvn) in zip(self.pi,self.mvns)]
+                cond_pi = [p_k/sum(pi_k) for p_k in pi_k]
+                cond_mu = [m_a - prec.dot(x_b-m_b) for (m_a,prec,m_b) in zip(self.mu_a,self.cond_mu_prec,self.mu_b)]
                 cum_cond_pi = np.array([sum(cond_pi[:k:]) for k in range(self.mixt_size)])
                 rand_k = (cum_cond_pi < rng.rand()).nonzero()[0][-1]
-                x_a = np.sqrt(cond_sig[rand_k])*rng.randn()+cond_mu[rand_k]
+                x_a = self.cond_sigsqrt[rand_k]*rng.randn()+cond_mu[rand_k]
 
                 self.past = self.past[1::] + [x_a[0,0]]
                 self._t = (self._t+1) % self.T
@@ -270,7 +273,6 @@ class LoadSampler(object):
             self.past = rng.multivariate_normal(self._init_means[norm_id],self._init_covars[norm_id]).tolist()
 
         self.past[-1] = max(self.past[-1], (self._lb-self.means[self._t])/np.abs(self.stds[self._t]))
-        self.past[-1] = min(self.past[-1], (750-self.means[self._t])/np.abs(self.stds[self._t]))
         return self.scale*(self.past[-1]*np.abs(self.stds[self._t])+self.means[self._t])
 
     _init_covars = array([[[  1.00000000e-03,   3.12250226e-17],
@@ -307,7 +309,7 @@ class LoadSampler(object):
 
     _init_weights = array([ 0.07142857,  0.00384876,  0.07142843,  0.07142857,  0.14285731,
                             0.18343599,  0.21428572,  0.07142857,  0.10227844,  0.06757963])
-    _trans_covars = [array([[[1.71398346e-01,   1.60365571e-01,   7.05111053e-02],
+    _trans_covars = array([[[1.71398346e-01,   1.60365571e-01,   7.05111053e-02],
                              [1.60365571e-01,   2.27722100e-01,   7.24066698e-02],
                              [7.05111053e-02,   7.24066698e-02,   2.77227542e-01]],
                             [[4.01404959e-01,   4.76287106e-01,   4.77508677e-01],
@@ -336,9 +338,9 @@ class LoadSampler(object):
                              [1.09281727e-01,   1.02896844e-01,   1.30110206e-01]],
                             [[6.70654007e-01,   6.50747271e-01,   6.30880500e-01],
                              [6.50747271e-01,   6.62770150e-01,   6.44278807e-01],
-                             [6.30880500e-01,   6.44278807e-01,   6.58141334e-01]]])]
+                             [6.30880500e-01,   6.44278807e-01,   6.58141334e-01]]])
 
-    _trans_means = [array([[ 0.66878085,  0.62739283,  0.57268366],
+    _trans_means = array([[ 0.66878085,  0.62739283,  0.57268366],
                            [ 0.33054161,  0.12561098, -0.04602142],
                            [-1.83488269, -1.80534587, -1.78807269],
                            [ 0.54930921,  0.56718121,  0.58342482],
@@ -347,12 +349,11 @@ class LoadSampler(object):
                            [ 0.56926998,  0.52566559,  0.41340767],
                            [ 1.48241576,  1.46521255,  1.43108068],
                            [-3.26554694, -3.25343348, -3.22360314],
-                           [-0.37892788, -0.37617895, -0.37260285]])]
+                           [-0.37892788, -0.37617895, -0.37260285]])
 
-    _trans_weights = [array([ 0.03589834,  0.0504234 ,  0.00449024,  0.14205945,  0.03553133,
-                              0.04232623,  0.05423524,  0.08948016,  0.01312534,  0.53243027])]
+    _trans_weights = array([ 0.03589834,  0.0504234 ,  0.00449024,  0.14205945,  0.03553133,
+                              0.04232623,  0.05423524,  0.08948016,  0.01312534,  0.53243027])
     _lb = 0.0
-    time_specific = False
     stds = array([ 0.07530187,  0.07311835,  0.07477758,  0.0711267 ,  0.0691166 ,
                    0.07173406,  0.07455794,  0.07638871,  0.07670439,  0.074222  ,
                    0.06535829,  0.06714898,  0.07091001,  0.07588446,  0.07657012,
