@@ -15,12 +15,11 @@ class Simulator:
     # It takes into account the control actions provided by the user and
     # computes the reward associated to every transition.
 
-    def __init__(self, rng=None, wind=WindSampler(), sun=SunSampler()):
+    def __init__(self, case=case75(), rng=None, wind=WindSampler(), sun=SunSampler()):
         # __init__ Initialize the data members of the class and 
         # generate the initial state of the system.
 
         # Load the test case
-        case = case75()
         self.buses = case["bus"]
         self.branches = case["branch"]
         self.devices = case["gen"]

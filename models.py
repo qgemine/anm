@@ -101,7 +101,7 @@ class SunSampler(object):
             norm_id = np.nonzero(np.cumsum([0.]+self._init_weights.tolist())[:-1:] <= rng.random_sample())[0][-1]
             self.past = rng.multivariate_normal(self._init_means[norm_id],self._init_covars[norm_id]).tolist()
 
-        self.past[-1] = max(self.past[-1], (self._lb-self.means[self._t])/np.abs(self.stds[self._t]))
+        self.past[-1] = min(max(self.past[-1], (self._lb-self.means[self._t])/np.abs(self.stds[self._t])),(750.0-self.means[self._t])/np.abs(self.stds[self._t]))
         return self.past[-1]*np.abs(self.stds[self._t])+self.means[self._t]
 
     _init_covars = array([[[ 0.001]],
