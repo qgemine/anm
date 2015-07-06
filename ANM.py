@@ -5,7 +5,6 @@ from numpy.random import RandomState
 from scipy import *
 from scipy import optimize
 from scipy import sparse
-import theano
 from case75 import *
 from models import WindSampler, SunSampler
 
@@ -119,19 +118,9 @@ class Simulator:
             self.Y_bus[k,m] = -y_line/tap * exp(-1.0j*shift)
             self.Y_bus[m,k] = -y_line/tap * exp(1.0j*shift)
         self.links = array(self.links)
+
         # Initial value of reals and imaginary parts of voltages for power flow computations.
         self.V_init = array([self.V_slack] + [1]*(self.N_buses-1) + [0]*self.N_buses)
-        # Set up theano variables and functions for power flow computations.
-        Vflat = theano.tensor.vector("Vflat")
-        V = Vflat[0:self.N_buses]+1j*Vflat[self.N_buses:]
-        Y = theano.tensor.zmatrix("Y")
-        P_inj = theano.tensor.vector("P")
-        Q_inj = theano.tensor.vector("Q")
-        S_inj = Y.conj().dot(V.conj())*V
-        self.pf_eqs = theano.function([Vflat,Y,P_inj,Q_inj], theano.tensor.concatenate(  (S_inj[1:].real-P_inj
-                                                                                ,S_inj[1:].imag-Q_inj
-                                                                                ,[V[0].real-self.V_slack]
-                                                                                ,[V[0].imag]) ))
 
         # Get functions to compute power levels of generators and loads.
         self.Ploads_fcts = [None]*self.N_loads
@@ -356,6 +345,15 @@ class Simulator:
 
         return not any(greater(self.I, self.ratings).tolist())
 
+    def getViolationMagn(self):
+        Vu = self.Vmagn-self.Vmax
+        Vl = self.Vmin-self.Vmagn
+        Iu = self.I-self.ratings
+        Vu = Vu[greater(Vu,0.0).nonzero()[0]]
+        Vl = Vl[greater(Vl,0.0).nonzero()[0]]
+        Iu = Iu[greater(Iu,0.0).nonzero()[0]]
+        return Vu.sum()+Vl.sum()+Iu.sum()
+
     def getReward(self):
         # GETREWARD Return the instantaneous reward associeted to the
         # last transition of the system.
@@ -364,7 +362,7 @@ class Simulator:
         if self.isSafe():
             return -self.getCost()
         else:
-            return -1.0e5
+            return -self.getCost() - 1.0e3*min(exp(self.getViolationMagn())-1.0,1.0e3)
 
     def getSolarIr(self):
         # GETSOLARIR Get the current solar irradiance, in W per m^2.
@@ -439,6 +437,14 @@ class Simulator:
         self.flex_act = zeros(self.N_flex, dtype=integer)
         self.curt_insts = 1e2*ones(self.N_curt)
 
+    def pf_eqs(self,v,y,p,q):
+        V = (v[0:self.N_buses]+1j*v[self.N_buses:])
+        Sinj = y.conj().dot(V.conj())*V
+        return hstack(( Sinj[1:].real-p,
+                        Sinj[1:].imag-q,
+                        [V[0]-self.V_slack],
+                        [V[0].imag])).real
+
     def comp_elec_state(self):
         # Aggregate power injections at buses
         P_devices = array([self.getPModLoad(load) for load in range(self.N_loads)]+[self.getPCurtGen(gen) for gen in range(self.N_gens)])
@@ -459,5 +465,10 @@ class Simulator:
         self.computed = True
 
 if __name__ == '__main__':
-    s = Simulator()
-    print s.getV()
+    s = Simulator(rng=RandomState())
+    for _ in range(96):
+        if s.isSafe():
+            print "safe"
+        else:
+            print s.getViolationMagn(), "|", s.getReward()
+        s.transition()
