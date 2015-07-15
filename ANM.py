@@ -448,8 +448,8 @@ class Simulator:
     def comp_elec_state(self):
         # Aggregate power injections at buses
         P_devices = array([self.getPModLoad(load) for load in range(self.N_loads)]+[self.getPCurtGen(gen) for gen in range(self.N_gens)])
-        Pbus = self.dev2bus.dot(P_devices)
-        Qbus = self.dev2bus.dot(P_devices*self.qp)
+        Pbus = self.dev2bus.dot(P_devices)/self.baseMVA
+        Qbus = self.dev2bus.dot(P_devices*self.qp)/self.baseMVA
         
         # Solve power flow equations
         x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1.0e-4}).x

@@ -389,7 +389,7 @@ def case75(flex_level = 'MEDIUM'):
     for load, scale in zip(loads,load_scales):
         ppc["power"] += [[load, LoadSampler(scale)]] # Dev id, callable
     for gen, scale in zip(gens[:-6],pv_scales):
-        ppc["power"] += [[gen, lambda ir, ws: scale*ir]] # Dev id, callable
+        ppc["power"] += [[gen, lambda ir, ws, scale=scale: scale*ir]] # Dev id, callable
     for gen in gens[-6:]:
         ppc["power"] += [[gen, lambda ir, ws: (9.0/6.0)*min(0.015*(ws-3.5)**3,3.0)*(ws>=3.5)*(ws<=25)]] # Dev id, callable
 
