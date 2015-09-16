@@ -95,28 +95,37 @@ class Simulator:
         self.Y_bus = zeros((self.N_buses,self.N_buses), dtype=complex)
         self.g_ij = empty((self.N_branches,))
         self.b_ij = empty((self.N_branches,))
+        self.V_to_I  = []
         self.ratings = empty((self.N_branches,))
         self.links = []
         for i in range(self.N_buses):
+            # Shunt admittance at buses
             self.Y_bus[i,i] = (self.buses[i,4]+1.0*self.buses[i,5])/self.baseMVA
         for i in range(self.N_branches):
             k = int(self.branches[i,0]-1) # from bus, 0-based id
             m = int(self.branches[i,1]-1) # to bus, 0-based id
+            # Serie admittance
             r = self.branches[i,2]
             x = self.branches[i,3]
-            b = self.branches[i,4]
-            tap = self.branches[i,8] if self.branches[i,8] > 0.0 else 1.0
-            shift = self.branches[i,9]
             y_line = 1.0/(r+1.0j*x)
+            # Charging admittance
+            b = self.branches[i,4]
             y_shunt = 0.5j*b
+            # Tap ratios
+            tap = self.branches[i,8] if self.branches[i,8] > 0.0 else 1.0
+            shift = self.branches[i,9]*pi/180.0
+            tap = tap * exp(1.0j*shift)
+
             self.links += [[k,m]]
             self.g_ij[i] = y_line.real
             self.b_ij[i] = y_line.imag
-            self.ratings[i] = self.branches[i,5]
-            self.Y_bus[k,k] += (y_line + y_shunt) / (tap**2)
+            self.ratings[i] = self.branches[i,5]/self.baseMVA
+            self.Y_bus[k,k] += (y_line + y_shunt) / (tap*conj(tap))
             self.Y_bus[m,m] += (y_line + y_shunt)
-            self.Y_bus[k,m] = -y_line/tap * exp(-1.0j*shift)
-            self.Y_bus[m,k] = -y_line/tap * exp(1.0j*shift)
+            self.Y_bus[k,m] = -y_line / conj(tap)
+            self.Y_bus[m,k] = -y_line / tap
+            self.V_to_I += [lambda V_buses,k=k,m=m,tap=tap,y_line=y_line: ((tap*conj(tap))*V_buses[k]-conj(tap)*V_buses[m])*y_line]
+
         self.links = array(self.links)
 
         # Initial value of reals and imaginary parts of voltages for power flow computations.
@@ -132,6 +141,12 @@ class Simulator:
                 self.Pgens_fcts[gens.index(id)] = fct
             else:
                 raise ValueError("Specifying a function for an unknown device.")
+
+        if any([x is None for x in self.Ploads_fcts]):
+            raise ValueError("A power level function is missing for at least one load.")
+
+        if any([x is None for x in self.Pgens_fcts]):
+            raise ValueError("A power level function is missing for at least one generator.")
 
         # Load services of flexible loads from the input file.
         self.flexSignals = []
@@ -457,18 +472,8 @@ class Simulator:
         
         # Get the solution
         self.Vmagn = abs(V_sol[1:])
-        e = real(V_sol)
-        f = imag(V_sol)
-        self.I = sqrt( (self.g_ij + self.b_ij)**2 * ( (e[self.links[:,0]]-e[self.links[:,1]])**2 + (f[self.links[:,0]]-f[self.links[:,1]])**2 ) )
-        
+        self.I = array([abs(self.V_to_I[br](V_sol)) for br in range(self.N_branches)])
+
         # Indicate that the electrical state is now computed.
         self.computed = True
 
-if __name__ == '__main__':
-    s = Simulator(rng=RandomState())
-    for _ in range(96):
-        if s.isSafe():
-            print "safe"
-        else:
-            print s.getViolationMagn(), "|", s.getReward()
-        s.transition()
