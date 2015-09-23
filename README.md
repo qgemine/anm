@@ -2,7 +2,7 @@
 
 In order to promote the development of computational techniques for **Active Network Management (ANM)**, we propose a test instance of a generic ANM problem. It can be used as a test bed for comparing existing computational techniques, as well as for developing new ones.
 
-![Screenshot of a simulation run](http://www.montefiore.ulg.ac.be/~anm/anm_simulation.png)
+[![IMAGE ALT TEXT HERE](http://img.youtube.com/vi/fb-eJzJGqxw/0.jpg)](http://www.youtube.com/watch?v=fb-eJzJGqxw)
 
 ## Problem formulation
 
