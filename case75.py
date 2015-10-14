@@ -3,13 +3,13 @@ from models import LoadSampler
 
 def case75(flex_level = 'MEDIUM'):
 
-    ppc = {"version": '2'}
+    case = {"version": "ANM"}
 
     ## system MVA base
-    ppc["baseMVA"] = 1.0
+    case["baseMVA"] = 1.0
 
     ## Bus data
-    ppc["bus"] = array([
+    case["bus"] = array([
         [1000, 3, 0.0, 0.0, 0, 0, 1, 1, 0, 33, 1, 1.1, 0.9],
         [1100, 1, 0.0, 0.0, 0, 0, 1, 1, 0, 11, 1, 1.05, 0.95],
         [1101, 1, 0.0, 0.0, 0, 0, 1, 1, 0, 11, 1, 1.05, 0.95],
@@ -91,7 +91,7 @@ def case75(flex_level = 'MEDIUM'):
 
 
     ## Gen data
-    ppc["gen"] = array([
+    case["gen"] = array([
         [1000, 0.0, 0.0, 100.0, -100.0, 1.02, 100.0, 1, 100.0, -100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         [1101, -1.0, -0.2031, 0.0, 0.0, 0.0, 100.0, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
         [1103, -1.0, -0.2031, 0.0, 0.0, 0.0, 100.0, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -208,7 +208,7 @@ def case75(flex_level = 'MEDIUM'):
     ])
 
     ## Branch data
-    ppc["branch"] = array([
+    case["branch"] = array([
         [1000.0, 1100.0, 0.0, 0.004667, 0.0, 25.0, 0.0, 0.0, 0.0, 0.0, 1.0, -360.0, 360.0],
         [1100.0, 1101.0, 0.002245, 0.001164, 0.0, 6.82, 0.0, 0.0, 0.0, 0.0, 1.0, -360.0, 360.0],
         [1101.0, 1102.0, 0.002245, 0.001164, 0.0, 6.82, 0.0, 0.0, 0.0, 0.0, 1.0, -360.0, 360.0],
@@ -346,8 +346,8 @@ def case75(flex_level = 'MEDIUM'):
     ]
 
     # Sets of generators and loads from the set of all devices.
-    gens = (ppc["gen"][:,1]>0.0).nonzero()[0]
-    loads = (ppc["gen"][:,1]<0.0).nonzero()[0]
+    gens = (case["gen"][:,1]>0.0).nonzero()[0]
+    loads = (case["gen"][:,1]<0.0).nonzero()[0]
 
     # Determine subset of considered flexible services of loads given the flex lvl parameter.
     N_flex = len(flex_conso)
@@ -359,16 +359,16 @@ def case75(flex_level = 'MEDIUM'):
         'VERY HIGH': range(0,N_flex,5)+range(1,N_flex,5)+range(2,N_flex,5)+range(3,N_flex,5), # 43
         'FULL':range(53)
     }
-    ppc["flex"] = []
+    case["flex"] = []
     for k in flex_steps[flex_level]:
-        ppc["flex"] += [flex_conso[k]]
+        case["flex"] += [flex_conso[k]]
 
     # Define the curtailment services for wind generators.
     curt_price = array([45.,  38.,  35.,  31.,  30.,  34.,  41.,  48.,  53.,  55.,  56.,
                         57.,  54.,  51.,  47.,  46.,  47.,  52.,  59.,  60.,  54.,  52.,
                         51.,  49.])
     for gen in gens[-6:]:
-        ppc["flex"] += [[2, gen, lambda real_time, price_time: curt_price[ceil((price_time-1)/4)]]]
+        case["flex"] += [[2, gen, lambda real_time, price_time: curt_price[ceil((price_time-1)/4)]]]
 
     # Define the stochastic models describing the consumption of loads and the production of generators.
     load_scales = array([0.4285,  0.4505,  0.3325,  0.3995,  0.4155,  0.4395,  0.3585,
@@ -379,18 +379,18 @@ def case75(flex_level = 'MEDIUM'):
                          0.3145,  0.302 ,  0.26  ,  0.493 ,  0.2825,  0.3235,  0.3045,
                          0.2835,  0.3005,  0.5495,  0.198 ,  0.5225,  0.194 ,  0.506 ,
                          0.17  ,  0.54  ,  0.244 ,  0.443 ])
-    pv_scales = 2.e-6*array([159.,  206.,  159.,  206.,  159.,  206.,  160.,  160.,   40.,
-                             202.,  173.,  173.,  173.,  259.,  259.,  260.,  260.,  173.,
-                             173.,  173.,  259.,  259.,  260.,  260.,  176.,  177.,  177.,
-                             177.,  264.,  266.,  266.,  266.,  266.,  139.,  140.,  140.,
-                             140.,  140.,  140.,  140.,  140.,  140.,  140.,  140.,  229.,
-                              90.,  231.,   91.,  231.,   91.,  231.,   91.,  231.])
-    ppc["power"] = []
+    pv_scales = 1.e-6*array([ 318.,  412.,  318.,  412.,  318.,  412.,  320.,  320.,   80.,
+                              404.,  346.,  346.,  346.,  518.,  518.,  520.,  520.,  346.,
+                              346.,  346.,  518.,  518.,  520.,  520.,  352.,  354.,  354.,
+                              354.,  528.,  532.,  532.,  532.,  532.,  278.,  280.,  280.,
+                              280.,  280.,  280.,  280.,  280.,  280.,  280.,  280.,  458.,
+                              180.,  462.,  182.,  462.,  182.,  462.,  182.,  462.])
+    case["power"] = []
     for load, scale in zip(loads,load_scales):
-        ppc["power"] += [[load, LoadSampler(scale)]] # Dev id, callable
+        case["power"] += [[load, LoadSampler(scale)]] # Dev id, callable
     for gen, scale in zip(gens[:-6],pv_scales):
-        ppc["power"] += [[gen, lambda ir, ws, scale=scale: scale*ir]] # Dev id, callable
+        case["power"] += [[gen, lambda ir, ws, scale=scale: scale*ir]] # Dev id, callable
     for gen in gens[-6:]:
-        ppc["power"] += [[gen, lambda ir, ws: (9.0/6.0)*min(0.015*(ws-3.5)**3,3.0)*(ws>=3.5)*(ws<=25)]] # Dev id, callable
+        case["power"] += [[gen, lambda ir, ws: (9.0/6.0)*min(0.015*(ws-3.5)**3,3.0)*(ws>=3.5)*(ws<=25)]] # Dev id, callable
 
-    return ppc
+    return case
