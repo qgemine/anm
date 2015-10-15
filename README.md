@@ -2,9 +2,9 @@ Note: The present readme has formatting issues, view the ipython notebook [here]
 
 # Active Network Management Framework
 
-This notebook stands as a tutorial and as a showcase of the Python package we developped in order to promote the development of computational techniques for Active Network Management (ANM). ANM strategies relies on short-term policies that control the power injected by generators and/or taken off by loads in order to avoid congestion or voltage issues.
+This notebook stands as a tutorial and as a showcase of the Python package we developped in order to promote the development of computational techniques for Active Network Management (ANM). ANM strategies rely on short-term policies that control the power injected by generators and/or taken off by loads in order to avoid congestion or voltage issues.
 
-The generic formulation of the ANM problem is motivated and described in [this paper](http://arxiv.org/pdf/1405.2806.pdf), which details also the procedure used for building the test case that is provided in the package.
+The generic formulation of the ANM problem is motivated and described in [this paper](http://hdl.handle.net/2268/173942), which details also the procedure used for building the test case that is provided in the package.
 
 ## 1. Simulator's basics
 
