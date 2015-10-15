@@ -371,7 +371,7 @@ def case75(flex_level = 'MEDIUM'):
         case["flex"] += [[2, gen, lambda real_time, price_time: curt_price[ceil((price_time-1)/4)]]]
 
     # Define the stochastic models describing the consumption of loads and the production of generators.
-    load_scales = array([0.4285,  0.4505,  0.3325,  0.3995,  0.4155,  0.4395,  0.3585,
+    load_scales = 4.*array([0.4285,  0.4505,  0.3325,  0.3995,  0.4155,  0.4395,  0.3585,
                          0.405 ,  0.083 ,  0.443 ,  0.36  ,  0.3905,  0.4515,  0.575 ,
                          0.592 ,  0.5625,  0.4605,  0.3445,  0.3775,  0.357 ,  0.578 ,
                          0.404 ,  0.6275,  0.5865,  0.4015,  0.383 ,  0.4625,  0.395 ,
