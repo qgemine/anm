@@ -151,7 +151,7 @@ class WindSampler(Sampler):
 
 class LoadSampler(Sampler):
     def __init__(self, scaling_factor=1.0):
-        self.scale = scaling_factor
+        self.scale = 4.*scaling_factor
         seas_mean = array([ 109.32353095,  104.85475   ,  102.52709524,   99.92796905,
                              97.73779841,   95.61581667,   94.4419127 ,   93.45818492,
                              93.60366984,   92.66400079,   92.81769921,   91.63458413,

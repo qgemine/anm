@@ -6,6 +6,7 @@ from scipy import *
 from scipy import optimize
 from scipy import sparse
 from models import WindSampler, SunSampler
+import warnings
 
 class Simulator:
     # ANM.Simulator Simulate the system dynamics of the Active Network
@@ -13,13 +14,13 @@ class Simulator:
     # It takes into account the control actions provided by the user and
     # computes the reward associated to every transition.
 
-    def __init__(self, case, rng=None, wind=WindSampler(), sun=SunSampler()):
+    def __init__(self, case, rng=None, wind=WindSampler, sun=SunSampler):
         # __init__ Initialize the data members of the class and 
         # generate the initial state of the system.
 
         # Load the test case
         self.buses = case["bus"]
-        self.branches = case["branch"]
+        self.branches = case["branch"][case["branch"][:,10]==1.,:]
         self.devices = case["gen"]
         self.services = case["flex"]
         self.baseMVA = case["baseMVA"]
@@ -37,8 +38,27 @@ class Simulator:
         self.N_loads = len(loads)
         # Number of generators.
         self.N_gens = len(gens)
-        # Q-P ratio of loads and generators.
-        self.qp = self.devices[loads+gens,2]/self.devices[loads+gens,1]
+        # P-Q rules of devices
+        self.pq_rules = list()
+        for load in (self.devices[dev_idx,:] for dev_idx in loads):
+            rule = PowerCapabilities("load (fixed pf)")
+            rule.qp_ratio = load[Simulator.dcol["Qg"]]/load[Simulator.dcol["Pg"]]
+            self.pq_rules.append(rule)
+        for gen in (self.devices[dev_idx,:] for dev_idx in gens):
+            rule = PowerCapabilities("generator")
+            if gen[Simulator.dcol["Pg"]] != 0:
+                rule.qp_ratio = gen[Simulator.dcol["Qg"]]/gen[Simulator.dcol["Pg"]]
+            if gen[Simulator.dcol["Pmin"]] != gen[Simulator.dcol["Pmax"]]:
+                rule.pmax = gen[Simulator.dcol["Pmax"]]
+                rule.pmin = gen[Simulator.dcol["Pmin"]]
+            if gen[Simulator.dcol["Qmin"]] != gen[Simulator.dcol["Qmax"]]:
+                rule.qmax = gen[Simulator.dcol["Qmax"]]
+                rule.qmin = gen[Simulator.dcol["Qmin"]]
+            if gen[Simulator.dcol["Pc1"]] != gen[Simulator.dcol["Pc2"]]:
+                rule.lead_limit = {k: gen[Simulator.dcol[k]] for k in ('Pc1','Pc2','Qc1max','Qc2max')}
+                rule.lag_limit = {k: gen[Simulator.dcol[k]] for k in ('Pc1','Pc2','Qc1min','Qc2min')}
+            self.pq_rules.append(rule)
+
         # Bounds of voltage magnitude at buses.
         self.Vmin = asarray(self.buses[1::,12])
         self.Vmax = asarray(self.buses[1::,11])
@@ -94,12 +114,12 @@ class Simulator:
         self.Y_bus = zeros((self.N_buses,self.N_buses), dtype=complex)
         self.g_ij = empty((self.N_branches,))
         self.b_ij = empty((self.N_branches,))
-        self.V_to_I  = []
+        self.V_to_I_params  = []
         self.ratings = empty((self.N_branches,))
         self.links = []
         for i in range(self.N_buses):
             # Shunt admittance at buses
-            self.Y_bus[i,i] = (self.buses[i,4]+1.0*self.buses[i,5])/self.baseMVA
+            self.Y_bus[i,i] = (self.buses[i,4]+1.0j*self.buses[i,5])
         for i in range(self.N_branches):
             k = int(self.branches[i,0]-1) # from bus, 0-based id
             m = int(self.branches[i,1]-1) # to bus, 0-based id
@@ -123,7 +143,7 @@ class Simulator:
             self.Y_bus[m,m] += (y_line + y_shunt)
             self.Y_bus[k,m] = -y_line / conj(tap)
             self.Y_bus[m,k] = -y_line / tap
-            self.V_to_I += [lambda V_buses,k=k,m=m,tap=tap,y_line=y_line: ((tap*conj(tap))*V_buses[k]-conj(tap)*V_buses[m])*y_line]
+            self.V_to_I_params += [(k,m,tap,y_line)]
 
         self.links = array(self.links)
 
@@ -190,8 +210,8 @@ class Simulator:
         self.rng = RandomState() if rng is None else rng
 
         # Get weather samplers.
-        self.sun = sun
-        self.wind = wind
+        self.sun = sun()
+        self.wind = wind()
 
         # Stochastic initialization of weather's state.
         self.ws = self.wind(self.rng)
@@ -213,7 +233,18 @@ class Simulator:
         self.flex_act = zeros(self.N_flex, dtype=integer)
         self.prod_limit = 1e2*ones(self.N_curt)
         self.curt_insts = 1e2*ones(self.N_curt)
+        self.Q_setpoints = empty(self.N_curt)
+        self.Q_setpoints[:] = NaN
+        self.Q_insts = empty(self.N_curt)
+        self.Q_insts[:] = NaN
         self.q = 1
+
+    def getActiveLosses(self):
+        #return sum([self.g_ij[branch_idx]*(self.getI(branch_idx)**2) for branch_idx in range(self.N_branches)])
+        if not self.computed:
+            self.comp_elec_state()
+        Plosses = self.S_slack.real+array([self.getPModLoad(load) for load in range(self.N_loads)]+[self.getPCurtGen(gen) for gen in range(self.N_gens)]).sum()
+        return Plosses
 
     def getCurtPrice(self, gen, timesteps=0):
         # GETCURTPRICE Get the cost of curtailing generation per MWh 
@@ -231,6 +262,9 @@ class Simulator:
         except ValueError:
             raise ValueError("No curtailment service for generator "+str(gen)+".")
 
+    def getLossPrice(self,timesteps=0):
+        return mean([self.getCurtPrice(gen, timesteps) for gen in self.curtIdInGens])
+
     def getProdLimit(self, gen):
         # GETCURTSTATE Get the last curtailment instructions, i.e. the
         # power production limits that are currently active.
@@ -238,6 +272,7 @@ class Simulator:
             return self.prod_limit[self.curtIdInGens.index(gen)]
         except ValueError:
             raise ValueError("No curtailment service for generator "+str(gen)+".")
+
 
     def getFlexCost(self, load, timesteps=0):
         # GETFLEXCOST Get the activation cost of the flexibility service
@@ -299,6 +334,14 @@ class Simulator:
              return self.Pgens[gen]
         except IndexError:
             raise IndexError("Wrong generator id '"+str(gen)+"'.")
+
+    def getQCurtGen(self, gen):
+        # GETQCURTGENS Get the reactive power injection of the generator, in
+        # MW.
+        try:
+            return self.Q_setpoints[self.curtIdInGens.index(gen)]
+        except ValueError:
+            return self.pq_rules[self.N_loads+gen].qp_ratio*self.getPCurtGen(gen)
     
     def getPGen(self, gen):
         # GETPGEN Get the potential (without curtailment) active power
@@ -307,6 +350,7 @@ class Simulator:
             return self.Pgens[gen]
         except IndexError:
             raise IndexError("Wrong generator id '"+str(gen)+"'.")
+
             
     def getPLoad(self, load):
         # GETPLOAD Get the baseline (without modulation) active power
@@ -326,6 +370,11 @@ class Simulator:
         except IndexError:
             raise IndexError("Wrong load id '"+str(load)+"'.")
 
+    def getQModLoad(self, load):
+        # GETQMODLOAD Get the reactive power injection of loads, in MW,
+        # accounting for prospective modulations.
+        return self.pq_rules[load].qp_ratio*self.getPModLoad(load)
+
     def getQuarter(self, timesteps=0):
         # GETQUARTER Get the quarter of an hour in day of the current
         # time period.
@@ -337,9 +386,10 @@ class Simulator:
             self.comp_elec_state()
 
         # Compute last transition's operational costs
-        curt_cost = sum([self.getCurtPrice(gen)*(self.getPGen(gen)-self.getPCurtGen(gen))/4.0 for gen in self.curtIdInGens])
+        curt_cost = sum([self.getCurtPrice(gen) * (self.getPGen(gen)-self.getPCurtGen(gen)) / 4.0 for gen in self.curtIdInGens])
         flex_cost = sum([self.getFlexCost(load)*activated for load, activated in zip(self.flexIdInLoads, self.last_flex_act.tolist())])
-        return curt_cost + flex_cost
+        loss_cost = self.getLossPrice()*self.getActiveLosses()/4.0
+        return curt_cost + flex_cost + loss_cost
 
     def isSafe(self):
         if not self.computed:
@@ -409,6 +459,12 @@ class Simulator:
         except ValueError:
             raise ValueError("No curtailment service for generator "+str(gen)+".")
 
+    def setQgen(self, gen, q_setpoint):
+        try:
+            self.Q_insts[self.curtIdInGens.index(gen)] = q_setpoint
+        except IndexError:
+            raise ValueError("No reactive power service for generator "+str(gen)+".")
+
     def activateFlex(self, load):
         try:
             self.flex_act[self.flexIdInLoads.index(load)] = 1
@@ -424,18 +480,6 @@ class Simulator:
         # Electrical state is now out of date.
         self.computed = False
 
-        # Update state of flexible loads.
-        self.flex_state = maximum(self.flex_state-1, 0) + self.flex_act*self.flexT
-
-        # Update curtailment state.
-        self.prod_limit = self.curt_insts
-        
-        # Compute value of load modulation signals.
-        self.dP_flex = greater(self.flex_state,0)*array([signal[T-s-1] for signal, T, s in zip(self.flexSignals,self.flexT,self.flex_state)])
-
-        # Increment the quarter of hour of the day
-        self.q = (self.q % 96) + 1
-
         # Stochastic transition of the consumption of loads.
         self.Ploads = array([f(self.rng) for f in self.Ploads_fcts])
 
@@ -443,13 +487,83 @@ class Simulator:
         self.ws = self.wind(self.rng)
         self.ir = self.sun(self.rng)
 
-        # Distributed generation from weather data
+        # Distributed active generation from weather data
         self.Pgens = array([f(self.ir, self.ws) for f in self.Pgens_fcts])
+
+        # Increment the quarter of hour of the day
+        self.q = (self.q % 96) + 1
+
+        # Update state of flexible loads.
+        self.flex_state = maximum(self.flex_state-1, 0) + self.flex_act*self.flexT
+
+        # Update curtailment state.
+        self.prod_limit = self.curt_insts
+
+        # Update reactive setpoints.
+        self.Q_setpoints = copy(self.Q_insts)
+        for gen in self.curtIdInGens:
+            q_setpoint = self.Q_setpoints[self.curtIdInGens.index(gen)]
+            if not isnan(q_setpoint):
+                self.check_power_setpoint(gen, self.getPCurtGen(gen), q_setpoint)
+        
+        # Compute value of load modulation signals.
+        self.dP_flex = array([signal[T-s] if s > 0 else 0.0 for signal, T, s in zip(self.flexSignals,self.flexT,self.flex_state)])
 
         # Reset instructions for next period.
         self.last_flex_act = self.flex_act
         self.flex_act = zeros(self.N_flex, dtype=integer)
         self.curt_insts = 1e2*ones(self.N_curt)
+        self.Q_insts[:] = NaN
+
+    def check_power_setpoint(self, gen, p_setpoint, q_setpoint):
+        # Check that the reactive power setpoint is valid for the generator.
+        rule = self.pq_rules[self.N_loads+gen]
+        try:
+            if (q_setpoint > rule.qmax):
+                warnings.warn(
+                    "Reactive setpoint %g for generator '%s' has been changed to %g (qmax)."
+                    % (q_setpoint, rule.description, rule.qmax)
+                )
+                self.Q_setpoints[self.curtIdInGens.index(gen)] = rule.qmax
+                q_setpoint = rule.qmax # for following checks
+        except AttributeError:
+            pass
+        try:
+            if (q_setpoint < rule.qmin):
+                warnings.warn(
+                    "Reactive setpoint %g for generator '%s' has been changed to %g (qmin)."
+                    % (q_setpoint, rule.description, rule.qmin)
+                )
+                self.Q_setpoints[self.curtIdInGens.index(gen)] = rule.qmin
+                q_setpoint = rule.qmin # for following checks
+        except AttributeError:
+            pass
+        try:
+            lead_slope, lead_off = rule.lead_limit
+            if (q_setpoint > lead_slope*self.getPCurtGen(gen)+lead_off):
+                new_prod_limit = (q_setpoint-lead_off)/lead_slope
+                if new_prod_limit > self.getPCurtGen(gen):
+                    warnings.warn(
+                        "Active setpoint %g for generator '%s' has been changed to %g (PCurt)."
+                        % (new_prod_limit, rule.description, self.getPCurtGen(gen))
+                    )
+                    new_prod_limit = self.getPCurtGen(gen)
+                self.prod_limit[self.curtIdInGens.index(gen)] = new_prod_limit
+        except AttributeError:
+            pass
+        try:
+            lag_slope, lag_off = rule.lag_limit
+            if (q_setpoint < lag_slope*self.getPCurtGen(gen)+lag_off):
+                new_prod_limit = (q_setpoint-lag_off)/lag_slope
+                if new_prod_limit > self.getPCurtGen(gen):
+                    warnings.warn(
+                        "Active setpoint %g for generator '%s' has been changed to %g (PCurt)."
+                        % (new_prod_limit, rule.description, self.getPCurtGen(gen))
+                    )
+                    new_prod_limit = self.getPCurtGen(gen)
+                self.prod_limit[self.curtIdInGens.index(gen)] = new_prod_limit
+        except AttributeError:
+            pass
 
     def pf_eqs(self,v,y,p,q):
         V = (v[0:self.N_buses]+1j*v[self.N_buses:])
@@ -459,20 +573,114 @@ class Simulator:
                         [V[0]-self.V_slack],
                         [V[0].imag])).real
 
+
+    def current_from_voltage(self, V_buses,k,m,tap,y_line):
+        return ((tap*conj(tap))*V_buses[k]-conj(tap)*V_buses[m])*y_line
+
     def comp_elec_state(self):
         # Aggregate power injections at buses
         P_devices = array([self.getPModLoad(load) for load in range(self.N_loads)]+[self.getPCurtGen(gen) for gen in range(self.N_gens)])
+        Q_devices = array([self.getQModLoad(load) for load in range(self.N_loads)]+[self.getQCurtGen(gen) for gen in range(self.N_gens)])
         Pbus = self.dev2bus.dot(P_devices)/self.baseMVA
-        Qbus = self.dev2bus.dot(P_devices*self.qp)/self.baseMVA
-        
+        Qbus = self.dev2bus.dot(Q_devices)/self.baseMVA
+
         # Solve power flow equations
-        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='lm', options={'xtol' : 1.0e-4}).x
+        x = optimize.root(self.pf_eqs, self.V_init, args=(self.Y_bus,Pbus,Qbus), method='hybr', options={'xtol' : 1.0e-4}).x
         V_sol = x[0:self.N_buses]+1j*x[self.N_buses:]
         
         # Get the solution
         self.Vmagn = abs(V_sol[1:])
-        self.I = array([abs(self.V_to_I[br](V_sol)) for br in range(self.N_branches)])
+        self.I = array([abs(self.current_from_voltage(V_sol, *self.V_to_I_params[br]))
+                        for br in range(self.N_branches)])
+        self.S_slack = (self.Y_bus.conj().dot(V_sol.conj())*V_sol)[0]*self.baseMVA
 
         # Indicate that the electrical state is now computed.
         self.computed = True
 
+    # Mapping from header names to array columns in the input array of devices.
+    dheaders = ["bus","Pg","Qg","Qmax","Qmin","Vg","mBase","status","Pmax","Pmin","Pc1","Pc2",
+                "Qc1min","Qc1max","Qc2min","Qc2max","ramp_agc","ramp_10","ramp_30","ramp_q","apf"]
+    dcol = dict(zip(dheaders,range(len(dheaders))))
+
+class PowerCapabilities(object):
+
+    def __init__(self, description="Unknown device"):
+        self.description = description
+
+    @property
+    def qp_ratio(self):
+        try:
+            return self._qp
+        except AttributeError:
+            raise AttributeError("'qp_ratio' is not set for '%s'." % self.description)
+    @qp_ratio.setter
+    def qp_ratio(self, value):
+        self._qp = value
+
+    @property
+    def pmin(self):
+        try:
+            return self._pmin
+        except AttributeError:
+            raise AttributeError("'pmin' is not set for '%s'." % self.description)
+    @pmin.setter
+    def pmin(self, value):
+        self._pmin = value
+
+    @property
+    def pmax(self):
+        try:
+            return self._pmax
+        except AttributeError:
+            raise AttributeError("'pmax' is not set for '%s'." % self.description)
+    @pmax.setter
+    def pmax(self, value):
+        self._pmax = value
+
+    @property
+    def qmin(self):
+        try:
+            return self._qmin
+        except AttributeError:
+            raise AttributeError("'qmin' is not set for '%s'." % self.description)
+    @qmin.setter
+    def qmin(self, value):
+        self._qmin = value
+
+    @property
+    def qmax(self):
+        try:
+            return self._qmax
+        except AttributeError:
+            raise AttributeError("'qmax' is not set for '%s'." % self.description)
+    @qmax.setter
+    def qmax(self, value):
+        self._qmax = value
+
+    @property
+    def lag_limit(self):
+        try:
+            return (self._lag_slope, self._lag_offset)
+        except AttributeError:
+            raise AttributeError("'lag_limit' is not set for '%s'." % self.description)
+    @lag_limit.setter
+    def lag_limit(self, params):
+        assert type(params) is dict
+        dQ = params["Qc2min"] - params["Qc1min"]
+        dP = params["Pc2"] - params["Pc1"]
+        self._lag_slope = dQ/dP
+        self._lag_offset = params["Qc1min"] - dQ / dP * params["Pc1"]
+
+    @property
+    def lead_limit(self):
+        try:
+            return (self._lead_slope, self._lead_offset)
+        except AttributeError:
+            raise AttributeError("'lead_limit' is not set for '%s'." % self.description)
+    @lead_limit.setter
+    def lead_limit(self, params):
+        assert type(params) is dict
+        dQ = params["Qc2max"]-params["Qc1max"]
+        dP = params["Pc2"]-params["Pc1"]
+        self._lead_slope = dQ/dP
+        self._lead_offset = params["Qc1max"] - dQ/dP*params["Pc1"]
